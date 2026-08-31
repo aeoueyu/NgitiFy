@@ -3256,12 +3256,17 @@ const dentistCanAccessPatient = async (dentistId, patientId) => {
 
     if (directlyAssignedPatient) return true;
 
-    const assignedAppointment = await Surgery.exists({
+    // A cancelled or merely-created appointment must not grant permanent EMR
+    // access. Current assignments are represented by assignedDentistId; the
+    // appointment fallback is retained only for dentists who actually treated
+    // the patient so their historical clinical access remains available.
+    const completedTreatment = await Surgery.exists({
         dentist: dentistId,
         patient: patientId,
+        status: 'completed',
     });
 
-    return Boolean(assignedAppointment);
+    return Boolean(completedTreatment);
 };
 
 const dentistCanAddTreatmentLogForPatient = async (dentistId, patientId) => {
@@ -6087,18 +6092,14 @@ app.get('/api/patients', verifyToken, async (req, res) => {
                 { _id: { $in: treatedPatientIds } },
             ];
         } else if (req.user.role === 'dentist') {
-            const dentistUser = await User.findById(req.user.id).select('name');
-            const assignedPatientIds = await Surgery.distinct('patient', {
+            const treatedPatientIds = await Surgery.distinct('patient', {
                 dentist: req.user.id,
                 patient: { $ne: null },
+                status: 'completed',
             });
-            const dentistDisplayName = dentistUser?.name
-                ? [dentistUser.name.first, dentistUser.name.middle, dentistUser.name.last].filter(Boolean).join(' ').trim()
-                : '';
             baseFilter.$or = [
                 { assignedDentistId: req.user.id },
-                ...(dentistDisplayName ? [{ assignedDentistName: dentistDisplayName }] : []),
-                { _id: { $in: assignedPatientIds } },
+                { _id: { $in: treatedPatientIds } },
             ];
         }
 
@@ -8876,12 +8877,18 @@ app.delete(['/api/surgeries/:id', '/api/appointments/:id'], verifyToken, async (
 app.get(['/api/surgeries', '/api/appointments'], verifyToken, async (req, res) => {
     try {
         const { patientId, status, date, dateFrom, dateTo } = req.query;
+        const scheduleScope = String(req.query.scope || '').trim().toLowerCase();
         const query = { isArchived: { $ne: true } };
         const isPatientRequest = req.user.role === 'patient';
         const requestedPatientId = patientId ? String(patientId) : '';
         const isPatientSelfRequest = isPatientRequest && (!requestedPatientId || requestedPatientId === String(req.user.id));
 
-        if (isPatientRequest) {
+        if (scheduleScope === 'my-schedule') {
+            if (!hasDentistClinicalAccess(req.user)) {
+                return res.status(403).json({ message: 'Dentist access is required to view My Schedule.' });
+            }
+            query.dentist = req.user.id;
+        } else if (isPatientRequest) {
             query.patient = req.user.id;
         } else if (req.user.role === 'dentist') {
             // Dentists are always scoped to their own appointments only
@@ -15270,8 +15277,11 @@ app.get('/api/queue', verifyToken, async (req, res) => {
         return;
     }
     try {
+        const scheduleScope = String(req.query.scope || '').trim().toLowerCase();
+        const isDentistScheduleRequest = req.user.role === 'dentist'
+            || (scheduleScope === 'my-schedule' && hasDentistClinicalAccess(req.user));
         const allowed = ['administrator', 'branch-manager', 'secretary', 'dentist'];
-        if (!allowed.includes(req.user.role)) {
+        if (!allowed.includes(req.user.role) && !isDentistScheduleRequest) {
             return res.status(403).json({ message: 'Access denied.' });
         }
  
@@ -15332,7 +15342,7 @@ app.get('/api/queue', verifyToken, async (req, res) => {
             .sort({ createdAt: 1, ticketNumber: 1 })
             .lean();
 
-        if (req.user.role === 'dentist') {
+        if (isDentistScheduleRequest) {
             const dentistUser = await User.findById(req.user.id).select('name');
             const bareName = dentistUser?.name
                 ? `${dentistUser.name.first || ''} ${dentistUser.name.last || ''}`.trim().toLowerCase()

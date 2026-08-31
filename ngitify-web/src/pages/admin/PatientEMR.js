@@ -405,6 +405,7 @@ export default function PatientEMR({
     // Core States
     const [activeTab, setActiveTab] = useState('overview');
     const [patient, setPatient] = useState(null);
+    const isMalePatient = String(patient?.gender || patient?.sex || '').trim().toLowerCase() === 'male';
     const [isLoading, setIsLoading] = useState(true);
     const [patientLoadError, setPatientLoadError] = useState('');
 
@@ -745,9 +746,11 @@ export default function PatientEMR({
             ['Has Allergies', formatYesNoValue(medicalHistory.hasAllergies)],
             ['Allergies', allergyValues.join(', ') || 'Not specified'],
             ['Bleeding Time', medicalHistory.bleedingTime],
-            ['Pregnant', formatYesNoValue(medicalHistory.isPregnant)],
-            ['Nursing', formatYesNoValue(medicalHistory.isNursing)],
-            ['Taking Birth Control Pills', formatYesNoValue(medicalHistory.takingBirthControl)],
+            ...(!isMalePatient ? [
+                ['Pregnant', formatYesNoValue(medicalHistory.isPregnant)],
+                ['Nursing', formatYesNoValue(medicalHistory.isNursing)],
+                ['Taking Birth Control Pills', formatYesNoValue(medicalHistory.takingBirthControl)],
+            ] : []),
             ['Blood Type', medicalHistory.bloodType || patient.bloodType],
             ['Blood Pressure', medicalHistory.bloodPressure],
             ['Medical Conditions', conditionValues.join(', ') || 'Not specified'],
@@ -1233,9 +1236,7 @@ export default function PatientEMR({
             'usesTobacco',
             'usesAlcoholOrDrugs',
             'hasAllergies',
-            'isPregnant',
-            'isNursing',
-            'takingBirthControl',
+            ...(!isMalePatient ? ['isPregnant', 'isNursing', 'takingBirthControl'] : []),
         ];
 
         requiredYesNoFields.forEach((field) => {
@@ -1370,9 +1371,11 @@ export default function PatientEMR({
                         usesAlcoholOrDrugs: selectToBool(medicalForm.usesAlcoholOrDrugs),
                         bleedingTime: medicalForm.bleedingTime || undefined,
                         bloodPressure: medicalForm.bloodPressure || undefined,
-                        isPregnant: selectToBool(medicalForm.isPregnant),
-                        isNursing: selectToBool(medicalForm.isNursing),
-                        takingBirthControl: selectToBool(medicalForm.takingBirthControl),
+                        ...(!isMalePatient ? {
+                            isPregnant: selectToBool(medicalForm.isPregnant),
+                            isNursing: selectToBool(medicalForm.isNursing),
+                            takingBirthControl: selectToBool(medicalForm.takingBirthControl),
+                        } : {}),
                     },
                     dentalHistory: {
                         chiefComplaint: medicalForm.reasonForConsultation || undefined,
@@ -1416,9 +1419,11 @@ export default function PatientEMR({
                     usesAlcoholOrDrugs: selectToBool(medicalForm.usesAlcoholOrDrugs),
                     bleedingTime: medicalForm.bleedingTime,
                     bloodPressure: medicalForm.bloodPressure,
-                    isPregnant: selectToBool(medicalForm.isPregnant),
-                    isNursing: selectToBool(medicalForm.isNursing),
-                    takingBirthControl: selectToBool(medicalForm.takingBirthControl),
+                    ...(!isMalePatient ? {
+                        isPregnant: selectToBool(medicalForm.isPregnant),
+                        isNursing: selectToBool(medicalForm.isNursing),
+                        takingBirthControl: selectToBool(medicalForm.takingBirthControl),
+                    } : {}),
                 },
                 dentalHistory: {
                     ...prev.dentalHistory,
@@ -1599,10 +1604,14 @@ export default function PatientEMR({
                                 <input type="text" name="bleedingTime" value={medicalForm.bleedingTime} onChange={handleMedicalFormChange} className={getMedicalFieldClass('bleedingTime')} />
                             </div>
                             <div />
-                            {renderYesNoEditor('Are You Pregnant?', 'isPregnant', true)}
-                            {renderYesNoEditor('Are You Nursing?', 'isNursing', true)}
-                            {renderYesNoEditor('Are You Taking Birth Control Pills?', 'takingBirthControl', true)}
-                            <div />
+                            {!isMalePatient && (
+                                <>
+                                    {renderYesNoEditor('Are You Pregnant?', 'isPregnant', true)}
+                                    {renderYesNoEditor('Are You Nursing?', 'isNursing', true)}
+                                    {renderYesNoEditor('Are You Taking Birth Control Pills?', 'takingBirthControl', true)}
+                                    <div />
+                                </>
+                            )}
                             <div className={styles.formGroup}>
                                 <label>Blood Type</label>
                                 <select name="bloodType" value={medicalForm.bloodType} onChange={handleMedicalFormChange} className={getMedicalFieldClass('bloodType')}>
@@ -1704,9 +1713,13 @@ export default function PatientEMR({
                         </div>
 
                         <div className={styles.infoGrid}>
-                            <div className={styles.infoBlock}><span className={styles.infoLabel}>Are You Pregnant?</span><p className={styles.infoValue}>{yesNoDisplay(medicalHistory.isPregnant)}</p></div>
-                            <div className={styles.infoBlock}><span className={styles.infoLabel}>Are You Nursing?</span><p className={styles.infoValue}>{yesNoDisplay(medicalHistory.isNursing)}</p></div>
-                            <div className={styles.infoBlock}><span className={styles.infoLabel}>Are You Taking Birth Control Pills?</span><p className={styles.infoValue}>{yesNoDisplay(medicalHistory.takingBirthControl)}</p></div>
+                            {!isMalePatient && (
+                                <>
+                                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Are You Pregnant?</span><p className={styles.infoValue}>{yesNoDisplay(medicalHistory.isPregnant)}</p></div>
+                                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Are You Nursing?</span><p className={styles.infoValue}>{yesNoDisplay(medicalHistory.isNursing)}</p></div>
+                                    <div className={styles.infoBlock}><span className={styles.infoLabel}>Are You Taking Birth Control Pills?</span><p className={styles.infoValue}>{yesNoDisplay(medicalHistory.takingBirthControl)}</p></div>
+                                </>
+                            )}
                             <div className={styles.infoBlock}><span className={styles.infoLabel}>Blood Type</span><p className={styles.infoValue}>{textDisplay(medicalHistory.bloodType)}</p></div>
                             <div className={styles.infoBlock}><span className={styles.infoLabel}>Blood Pressure</span><p className={styles.infoValue}>{textDisplay(medicalHistory.bloodPressure)}</p></div>
                         </div>

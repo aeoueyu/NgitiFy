@@ -1,0 +1,1492 @@
+{
+  "path": "C:\\Users\\Administrator\\Downloads\\functionality testing.docx",
+  "sections": [
+    {
+      "page_width_in": 8.5,
+      "page_height_in": 11.0,
+      "top_margin_in": 1.0,
+      "bottom_margin_in": 1.0,
+      "left_margin_in": 1.0,
+      "right_margin_in": 1.0,
+      "header_distance_in": 0.5,
+      "footer_distance_in": 0.5,
+      "header": [
+        ""
+      ],
+      "footer": [
+        ""
+      ]
+    }
+  ],
+  "inline_shapes": 8,
+  "blocks": [
+    {
+      "index": 0,
+      "type": "table",
+      "rows": [
+        [
+          "FUNCTIONALITY TEST DOCUMENT",
+          "FUNCTIONALITY TEST DOCUMENT",
+          "Module Name",
+          "Module Name",
+          "WEBSITE ONLINE BOOKING MODULE",
+          "WEBSITE ONLINE BOOKING MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "Function Name",
+          "Function Name",
+          "WEBSITE APPOINTMENT REQUEST",
+          "WEBSITE APPOINTMENT REQUEST"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "User/Access Type",
+          "User/Access Type",
+          "Patient",
+          "Patient"
+        ],
+        [
+          "Date Tested",
+          "",
+          "Type of System",
+          "Type of System",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-Conditions",
+          "The patient must have access to the NgitiFy website and the online appointment booking form must be available.",
+          "The patient must have access to the NgitiFy website and the online appointment booking form must be available.",
+          "The patient must have access to the NgitiFy website and the online appointment booking form must be available.",
+          "The patient must have access to the NgitiFy website and the online appointment booking form must be available.",
+          "The patient must have access to the NgitiFy website and the online appointment booking form must be available."
+        ],
+        [
+          "Action Description",
+          "Submit an appointment request through the website.",
+          "Submit an appointment request through the website.",
+          "Submit an appointment request through the website.",
+          "Submit an appointment request through the website.",
+          "Submit an appointment request through the website."
+        ],
+        [
+          "Verification Steps",
+          "Enter the required appointment details, complete the required consent and CAPTCHA verification, submit the request, and verify the result.",
+          "Enter the required appointment details, complete the required consent and CAPTCHA verification, submit the request, and verify the result.",
+          "Enter the required appointment details, complete the required consent and CAPTCHA verification, submit the request, and verify the result.",
+          "Enter the required appointment details, complete the required consent and CAPTCHA verification, submit the request, and verify the result.",
+          "Enter the required appointment details, complete the required consent and CAPTCHA verification, submit the request, and verify the result."
+        ],
+        [
+          "Test Scenario",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "The appointment request must be submitted successfully.",
+          "The appointment request must be submitted successfully.",
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "index": 2,
+      "type": "table",
+      "rows": [
+        [
+          "FUNCTIONALITY TEST DOCUMENT",
+          "FUNCTIONALITY TEST DOCUMENT",
+          "Module Name",
+          "Module Name",
+          "REGISTRATION MODULE",
+          "REGISTRATION MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "Function Name",
+          "Function Name",
+          "PATIENT PRE-REGISTRATION",
+          "PATIENT PRE-REGISTRATION"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "User/Access Type",
+          "User/Access Type",
+          "Patient",
+          "Patient"
+        ],
+        [
+          "Date Tested",
+          "",
+          "Type of System",
+          "Type of System",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-Conditions",
+          "The patient has successfully submitted an online appointment request and the pre-registration form is accessible.",
+          "The patient has successfully submitted an online appointment request and the pre-registration form is accessible.",
+          "The patient has successfully submitted an online appointment request and the pre-registration form is accessible.",
+          "The patient has successfully submitted an online appointment request and the pre-registration form is accessible.",
+          "The patient has successfully submitted an online appointment request and the pre-registration form is accessible."
+        ],
+        [
+          "Action Description",
+          "Complete and submit the patient pre-registration form.",
+          "Complete and submit the patient pre-registration form.",
+          "Complete and submit the patient pre-registration form.",
+          "Complete and submit the patient pre-registration form.",
+          "Complete and submit the patient pre-registration form."
+        ],
+        [
+          "Verification Steps",
+          "Enter the required patient information, submit the pre-registration form, and verify that the registration details are successfully processed.",
+          "Enter the required patient information, submit the pre-registration form, and verify that the registration details are successfully processed.",
+          "Enter the required patient information, submit the pre-registration form, and verify that the registration details are successfully processed.",
+          "Enter the required patient information, submit the pre-registration form, and verify that the registration details are successfully processed.",
+          "Enter the required patient information, submit the pre-registration form, and verify that the registration details are successfully processed."
+        ],
+        [
+          "Test Scenario",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Must be able to complete and submit the pre-registration form successfully.",
+          "Must be able to complete and submit the pre-registration form successfully.",
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "index": 4,
+      "type": "table",
+      "rows": [
+        [
+          "FUNCTIONALITY TEST DOCUMENT",
+          "FUNCTIONALITY TEST DOCUMENT",
+          "Module Name",
+          "Module Name",
+          "REGISTRATION MODULE",
+          "REGISTRATION MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "Function Name",
+          "Function Name",
+          "SET-UP PASSWORD",
+          "SET-UP PASSWORD"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "User/Access Type",
+          "User/Access Type",
+          "Patient",
+          "Patient"
+        ],
+        [
+          "Date Tested",
+          "",
+          "Type of System",
+          "Type of System",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-Conditions",
+          "The patient must be successfully registered and have access to the account activation link.",
+          "The patient must be successfully registered and have access to the account activation link.",
+          "The patient must be successfully registered and have access to the account activation link.",
+          "The patient must be successfully registered and have access to the account activation link.",
+          "The patient must be successfully registered and have access to the account activation link."
+        ],
+        [
+          "Action Description",
+          "Set up the patient account password.",
+          "Set up the patient account password.",
+          "Set up the patient account password.",
+          "Set up the patient account password.",
+          "Set up the patient account password."
+        ],
+        [
+          "Verification Steps",
+          "Enter and confirm a valid password, submit the password setup, and verify that the account is successfully activated.",
+          "Enter and confirm a valid password, submit the password setup, and verify that the account is successfully activated.",
+          "Enter and confirm a valid password, submit the password setup, and verify that the account is successfully activated.",
+          "Enter and confirm a valid password, submit the password setup, and verify that the account is successfully activated.",
+          "Enter and confirm a valid password, submit the password setup, and verify that the account is successfully activated."
+        ],
+        [
+          "Test Scenario",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Must be able to set up the account password successfully.",
+          "Must be able to set up the account password successfully.",
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "index": 6,
+      "type": "table",
+      "rows": [
+        [
+          "FUNCTIONALITY TEST DOCUMENT",
+          "FUNCTIONALITY TEST DOCUMENT",
+          "Module Name",
+          "Module Name",
+          "LOGIN MODULE",
+          "LOGIN MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "Function Name",
+          "Function Name",
+          "LOGIN",
+          "LOGIN"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "User/Access Type",
+          "User/Access Type",
+          "Patient",
+          "Patient"
+        ],
+        [
+          "Date Tested",
+          "",
+          "Type of System",
+          "Type of System",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-Conditions",
+          "The patient must have a registered and activated account.",
+          "The patient must have a registered and activated account.",
+          "The patient must have a registered and activated account.",
+          "The patient must have a registered and activated account.",
+          "The patient must have a registered and activated account."
+        ],
+        [
+          "Action Description",
+          "Log in to the system using the patient account credentials.",
+          "Log in to the system using the patient account credentials.",
+          "Log in to the system using the patient account credentials.",
+          "Log in to the system using the patient account credentials.",
+          "Log in to the system using the patient account credentials."
+        ],
+        [
+          "Verification Steps",
+          "Enter valid login credentials, click the Login button, and verify that the patient is successfully logged in and redirected to the appropriate dashboard.",
+          "Enter valid login credentials, click the Login button, and verify that the patient is successfully logged in and redirected to the appropriate dashboard.",
+          "Enter valid login credentials, click the Login button, and verify that the patient is successfully logged in and redirected to the appropriate dashboard.",
+          "Enter valid login credentials, click the Login button, and verify that the patient is successfully logged in and redirected to the appropriate dashboard.",
+          "Enter valid login credentials, click the Login button, and verify that the patient is successfully logged in and redirected to the appropriate dashboard."
+        ],
+        [
+          "Test Scenario",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Must be able to set up the account password successfully.",
+          "Must be able to set up the account password successfully.",
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "index": 8,
+      "type": "table",
+      "rows": [
+        [
+          "FUNCTIONALITY TEST DOCUMENT",
+          "FUNCTIONALITY TEST DOCUMENT",
+          "Module Name",
+          "Module Name",
+          "LOGIN MODULE",
+          "LOGIN MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "Function Name",
+          "Function Name",
+          "FORGOT PASSWORD",
+          "FORGOT PASSWORD"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "User/Access Type",
+          "User/Access Type",
+          "Patient",
+          "Patient"
+        ],
+        [
+          "Date Tested",
+          "",
+          "Type of System",
+          "Type of System",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-Conditions",
+          "The patient must have a registered account and access to the login page.",
+          "The patient must have a registered account and access to the login page.",
+          "The patient must have a registered account and access to the login page.",
+          "The patient must have a registered account and access to the login page.",
+          "The patient must have a registered account and access to the login page."
+        ],
+        [
+          "Action Description",
+          "Request a password reset for the patient account.",
+          "Request a password reset for the patient account.",
+          "Request a password reset for the patient account.",
+          "Request a password reset for the patient account.",
+          "Request a password reset for the patient account."
+        ],
+        [
+          "Verification Steps",
+          "Click Forgot Password, enter the registered email address, submit the request, and verify that the password reset process is initiated.",
+          "Click Forgot Password, enter the registered email address, submit the request, and verify that the password reset process is initiated.",
+          "Click Forgot Password, enter the registered email address, submit the request, and verify that the password reset process is initiated.",
+          "Click Forgot Password, enter the registered email address, submit the request, and verify that the password reset process is initiated.",
+          "Click Forgot Password, enter the registered email address, submit the request, and verify that the password reset process is initiated."
+        ],
+        [
+          "Test Scenario",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Must be able to request a password reset successfully.",
+          "Must be able to request a password reset successfully.",
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "index": 10,
+      "type": "table",
+      "rows": [
+        [
+          "FUNCTIONALITY TEST DOCUMENT",
+          "FUNCTIONALITY TEST DOCUMENT",
+          "Module Name",
+          "Module Name",
+          "LOGIN MODULE",
+          "LOGIN MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "Function Name",
+          "Function Name",
+          "FORGOT PASSWORD - OTP",
+          "FORGOT PASSWORD - OTP"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "User/Access Type",
+          "User/Access Type",
+          "Patient",
+          "Patient"
+        ],
+        [
+          "Date Tested",
+          "",
+          "Type of System",
+          "Type of System",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-Conditions",
+          "Enter email in the Forgot Password page.",
+          "Enter email in the Forgot Password page.",
+          "Enter email in the Forgot Password page.",
+          "Enter email in the Forgot Password page.",
+          "Enter email in the Forgot Password page."
+        ],
+        [
+          "Action Description",
+          "Validate the OTP.",
+          "Validate the OTP.",
+          "Validate the OTP.",
+          "Validate the OTP.",
+          "Validate the OTP."
+        ],
+        [
+          "Verification Steps",
+          "Verify that the correct OTP redirects the user to the Reset Password page and an incorrect OTP displays an error message.",
+          "Verify that the correct OTP redirects the user to the Reset Password page and an incorrect OTP displays an error message.",
+          "Verify that the correct OTP redirects the user to the Reset Password page and an incorrect OTP displays an error message.",
+          "Verify that the correct OTP redirects the user to the Reset Password page and an incorrect OTP displays an error message.",
+          "Verify that the correct OTP redirects the user to the Reset Password page and an incorrect OTP displays an error message."
+        ],
+        [
+          "Test Scenario",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "The New Password page must display after entering the correct OTP.",
+          "The New Password page must display after entering the correct OTP.",
+          "",
+          "",
+          ""
+        ],
+        [
+          "2",
+          "The message must display “Invalid or expired OTP” after entering an incorrect OTP.",
+          "The message must display “Invalid or expired OTP” after entering an incorrect OTP.",
+          "",
+          "",
+          ""
+        ],
+        [
+          "3",
+          "The message must display “New code sent” and the resend countdown must restart",
+          "The message must display “New code sent” and the resend countdown must restart",
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "index": 12,
+      "type": "table",
+      "rows": [
+        [
+          "FUNCTIONALITY TEST DOCUMENT",
+          "FUNCTIONALITY TEST DOCUMENT",
+          "Module Name",
+          "Module Name",
+          "LOGIN MODULE",
+          "LOGIN MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "Function Name",
+          "Function Name",
+          "RESET PASSWORD",
+          "RESET PASSWORD"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "User/Access Type",
+          "User/Access Type",
+          "Patient",
+          "Patient"
+        ],
+        [
+          "Date Tested",
+          "",
+          "Type of System",
+          "Type of System",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-Conditions",
+          "Enter the valid OTP in the OTP page.",
+          "Enter the valid OTP in the OTP page.",
+          "Enter the valid OTP in the OTP page.",
+          "Enter the valid OTP in the OTP page.",
+          "Enter the valid OTP in the OTP page."
+        ],
+        [
+          "Action Description",
+          "Validate the new and confirm password.",
+          "Validate the new and confirm password.",
+          "Validate the new and confirm password.",
+          "Validate the new and confirm password.",
+          "Validate the new and confirm password."
+        ],
+        [
+          "Verification Steps",
+          "Verify that the password is successfully reset and the appropriate validation message is displayed.",
+          "Verify that the password is successfully reset and the appropriate validation message is displayed.",
+          "Verify that the password is successfully reset and the appropriate validation message is displayed.",
+          "Verify that the password is successfully reset and the appropriate validation message is displayed.",
+          "Verify that the password is successfully reset and the appropriate validation message is displayed."
+        ],
+        [
+          "Test Scenario",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "The password must be successfully reset and the login page must display.",
+          "The password must be successfully reset and the login page must display.",
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "index": 14,
+      "type": "table",
+      "rows": [
+        [
+          "FUNCTIONALITY TEST DOCUMENT",
+          "FUNCTIONALITY TEST DOCUMENT",
+          "Module Name",
+          "Module Name",
+          "ACCOUNT SETTINGS MODULE",
+          "ACCOUNT SETTINGS MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "Function Name",
+          "Function Name",
+          "EDIT PROFILE",
+          "EDIT PROFILE"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "User/Access Type",
+          "User/Access Type",
+          "Patient",
+          "Patient"
+        ],
+        [
+          "Date Tested",
+          "",
+          "Type of System",
+          "Type of System",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-Conditions",
+          "Log in as a Patient, click My Profile from the sidebar, then select Edit Profile.",
+          "Log in as a Patient, click My Profile from the sidebar, then select Edit Profile.",
+          "Log in as a Patient, click My Profile from the sidebar, then select Edit Profile.",
+          "Log in as a Patient, click My Profile from the sidebar, then select Edit Profile.",
+          "Log in as a Patient, click My Profile from the sidebar, then select Edit Profile."
+        ],
+        [
+          "Action Description",
+          "Update and validate the patient's profile details.",
+          "Update and validate the patient's profile details.",
+          "Update and validate the patient's profile details.",
+          "Update and validate the patient's profile details.",
+          "Update and validate the patient's profile details."
+        ],
+        [
+          "Verification Steps",
+          "Check whether the updated profile information is saved successfully and whether the proper validation messages appear for incomplete or invalid entries.",
+          "Check whether the updated profile information is saved successfully and whether the proper validation messages appear for incomplete or invalid entries.",
+          "Check whether the updated profile information is saved successfully and whether the proper validation messages appear for incomplete or invalid entries.",
+          "Check whether the updated profile information is saved successfully and whether the proper validation messages appear for incomplete or invalid entries.",
+          "Check whether the updated profile information is saved successfully and whether the proper validation messages appear for incomplete or invalid entries."
+        ],
+        [
+          "Test Scenario",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "A confirmation message must appear, and the patient's updated profile information must be saved successfully.",
+          "A confirmation message must appear, and the patient's updated profile information must be saved successfully.",
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "index": 16,
+      "type": "table",
+      "rows": [
+        [
+          "FUNCTIONALITY TEST DOCUMENT",
+          "FUNCTIONALITY TEST DOCUMENT",
+          "Module Name",
+          "Module Name",
+          "ACCOUNT SETTINGS MODULE",
+          "ACCOUNT SETTINGS MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "Function Name",
+          "Function Name",
+          "CHANGE PASSWORD",
+          "CHANGE PASSWORD"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "User/Access Type",
+          "User/Access Type",
+          "Patient",
+          "Patient"
+        ],
+        [
+          "Date Tested",
+          "",
+          "Type of System",
+          "Type of System",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-Conditions",
+          "Log in, click Settings from the sidebar, and click Account Security.",
+          "Log in, click Settings from the sidebar, and click Account Security.",
+          "Log in, click Settings from the sidebar, and click Account Security.",
+          "Log in, click Settings from the sidebar, and click Account Security.",
+          "Log in, click Settings from the sidebar, and click Account Security."
+        ],
+        [
+          "Action Description",
+          "Validate the current password, new password, and confirm new password.",
+          "Validate the current password, new password, and confirm new password.",
+          "Validate the current password, new password, and confirm new password.",
+          "Validate the current password, new password, and confirm new password.",
+          "Validate the current password, new password, and confirm new password."
+        ],
+        [
+          "Verification Steps",
+          "Verify that the password is successfully updated when valid credentials are entered and that appropriate validation messages are displayed for invalid entries.",
+          "Verify that the password is successfully updated when valid credentials are entered and that appropriate validation messages are displayed for invalid entries.",
+          "Verify that the password is successfully updated when valid credentials are entered and that appropriate validation messages are displayed for invalid entries.",
+          "Verify that the password is successfully updated when valid credentials are entered and that appropriate validation messages are displayed for invalid entries.",
+          "Verify that the password is successfully updated when valid credentials are entered and that appropriate validation messages are displayed for invalid entries."
+        ],
+        [
+          "Test Scenario",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "The password must be updated successfully, and a confirmation message must display.",
+          "The password must be updated successfully, and a confirmation message must display.",
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "index": 18,
+      "type": "table",
+      "rows": [
+        [
+          "FUNCTIONALITY TEST DOCUMENT",
+          "FUNCTIONALITY TEST DOCUMENT",
+          "Module Name",
+          "Module Name",
+          "ACCOUNT SETTINGS MODULE",
+          "ACCOUNT SETTINGS MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "Function Name",
+          "Function Name",
+          "CHANGE EMAIL",
+          "CHANGE EMAIL"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "User/Access Type",
+          "User/Access Type",
+          "Patient",
+          "Patient"
+        ],
+        [
+          "Date Tested",
+          "",
+          "Type of System",
+          "Type of System",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-Conditions",
+          "Log in, click My Profile from the sidebar, and click Change Email.",
+          "Log in, click My Profile from the sidebar, and click Change Email.",
+          "Log in, click My Profile from the sidebar, and click Change Email.",
+          "Log in, click My Profile from the sidebar, and click Change Email.",
+          "Log in, click My Profile from the sidebar, and click Change Email."
+        ],
+        [
+          "Action Description",
+          "Validate the new email address and current password.",
+          "Validate the new email address and current password.",
+          "Validate the new email address and current password.",
+          "Validate the new email address and current password.",
+          "Validate the new email address and current password."
+        ],
+        [
+          "Verification Steps",
+          "Verify that the system validates the entered email address and password before processing the email change request.",
+          "Verify that the system validates the entered email address and password before processing the email change request.",
+          "Verify that the system validates the entered email address and password before processing the email change request.",
+          "Verify that the system validates the entered email address and password before processing the email change request.",
+          "Verify that the system validates the entered email address and password before processing the email change request."
+        ],
+        [
+          "Test Scenario",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "A verification request must be sent successfully after entering a valid email address and correct password.",
+          "A verification request must be sent successfully after entering a valid email address and correct password.",
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "index": 20,
+      "type": "table",
+      "rows": [
+        [
+          "FUNCTIONALITY TEST DOCUMENT",
+          "FUNCTIONALITY TEST DOCUMENT",
+          "Module Name",
+          "Module Name",
+          "ACCOUNT SETTINGS MODULE",
+          "ACCOUNT SETTINGS MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "Function Name",
+          "Function Name",
+          "NOTIFICATIONS",
+          "NOTIFICATIONS"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "User/Access Type",
+          "User/Access Type",
+          "Patient",
+          "Patient"
+        ],
+        [
+          "Date Tested",
+          "",
+          "Type of System",
+          "Type of System",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-Conditions",
+          "User is logged in and Notifications page is accessible",
+          "User is logged in and Notifications page is accessible",
+          "User is logged in and Notifications page is accessible",
+          "User is logged in and Notifications page is accessible",
+          "User is logged in and Notifications page is accessible"
+        ],
+        [
+          "Action Description",
+          "Update notification preferences",
+          "Update notification preferences",
+          "Update notification preferences",
+          "Update notification preferences",
+          "Update notification preferences"
+        ],
+        [
+          "Verification Steps",
+          "Enable or disable notification preferences and save changes",
+          "Enable or disable notification preferences and save changes",
+          "Enable or disable notification preferences and save changes",
+          "Enable or disable notification preferences and save changes",
+          "Enable or disable notification preferences and save changes"
+        ],
+        [
+          "Test Scenario",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Notification preferences are saved successfully",
+          "Notification preferences are saved successfully",
+          "",
+          "",
+          ""
+        ],
+        [
+          "2",
+          "Saved preferences remain after reopening the page",
+          "Saved preferences remain after reopening the page",
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "index": 22,
+      "type": "table",
+      "rows": [
+        [
+          "FUNCTIONALITY TEST DOCUMENT",
+          "FUNCTIONALITY TEST DOCUMENT",
+          "Module Name",
+          "Module Name",
+          "USER ACCOUNTS MANAGEMENT MODULE",
+          "USER ACCOUNTS MANAGEMENT MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "Function Name",
+          "Function Name",
+          "SEARCH/FILTER STAFF",
+          "SEARCH/FILTER STAFF"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "User/Access Type",
+          "User/Access Type",
+          "Admin",
+          "Admin"
+        ],
+        [
+          "Date Tested",
+          "",
+          "Type of System",
+          "Type of System",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-Conditions",
+          "Login, click Manage Staffs from the sidebar.",
+          "Login, click Manage Staffs from the sidebar.",
+          "Login, click Manage Staffs from the sidebar.",
+          "Login, click Manage Staffs from the sidebar.",
+          "Login, click Manage Staffs from the sidebar."
+        ],
+        [
+          "Action Description",
+          "Search and filter staff records.",
+          "Search and filter staff records.",
+          "Search and filter staff records.",
+          "Search and filter staff records.",
+          "Search and filter staff records."
+        ],
+        [
+          "Verification Steps",
+          "Enter search criteria and verify the displayed staff results.",
+          "Enter search criteria and verify the displayed staff results.",
+          "Enter search criteria and verify the displayed staff results.",
+          "Enter search criteria and verify the displayed staff results.",
+          "Enter search criteria and verify the displayed staff results."
+        ],
+        [
+          "Test Scenario",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Matching staff records are displayed",
+          "Matching staff records are displayed",
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "index": 24,
+      "type": "table",
+      "rows": [
+        [
+          "FUNCTIONALITY TEST DOCUMENT",
+          "FUNCTIONALITY TEST DOCUMENT",
+          "Module Name",
+          "Module Name",
+          "USER ACCOUNTS MANAGEMENT MODULE",
+          "USER ACCOUNTS MANAGEMENT MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "Function Name",
+          "Function Name",
+          "ADD NEW STAFF",
+          "ADD NEW STAFF"
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "User/Access Type",
+          "User/Access Type",
+          "Admin",
+          "Admin"
+        ],
+        [
+          "Date Tested",
+          "",
+          "Type of System",
+          "Type of System",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-Conditions",
+          "Login, click Manage Staffs from the sidebar, then click Add New.",
+          "Login, click Manage Staffs from the sidebar, then click Add New.",
+          "Login, click Manage Staffs from the sidebar, then click Add New.",
+          "Login, click Manage Staffs from the sidebar, then click Add New.",
+          "Login, click Manage Staffs from the sidebar, then click Add New."
+        ],
+        [
+          "Action Description",
+          "Add a new staff account.",
+          "Add a new staff account.",
+          "Add a new staff account.",
+          "Add a new staff account.",
+          "Add a new staff account."
+        ],
+        [
+          "Verification Steps",
+          "Enter the required staff information and submit the form.",
+          "Enter the required staff information and submit the form.",
+          "Enter the required staff information and submit the form.",
+          "Enter the required staff information and submit the form.",
+          "Enter the required staff information and submit the form."
+        ],
+        [
+          "Test Scenario",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "New staff account is added successfully",
+          "New staff account is added successfully",
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "index": 26,
+      "type": "table",
+      "rows": [
+        [
+          "FUNCTIONALITY TEST DOCUMENT",
+          "FUNCTIONALITY TEST DOCUMENT",
+          "Module Name",
+          "Module Name",
+          "",
+          ""
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "Function Name",
+          "Function Name",
+          "",
+          ""
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "User/Access Type",
+          "User/Access Type",
+          "",
+          ""
+        ],
+        [
+          "Date Tested",
+          "",
+          "Type of System",
+          "Type of System",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-Conditions",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Action Description",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Verification Steps",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Test Scenario",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "index": 28,
+      "type": "table",
+      "rows": [
+        [
+          "FUNCTIONALITY TEST DOCUMENT",
+          "FUNCTIONALITY TEST DOCUMENT",
+          "Module Name",
+          "Module Name",
+          "",
+          ""
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "Function Name",
+          "Function Name",
+          "",
+          ""
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "User/Access Type",
+          "User/Access Type",
+          "",
+          ""
+        ],
+        [
+          "Date Tested",
+          "",
+          "Type of System",
+          "Type of System",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-Conditions",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Action Description",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Verification Steps",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Test Scenario",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "index": 30,
+      "type": "table",
+      "rows": [
+        [
+          "FUNCTIONALITY TEST DOCUMENT",
+          "FUNCTIONALITY TEST DOCUMENT",
+          "Module Name",
+          "Module Name",
+          "",
+          ""
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "Function Name",
+          "Function Name",
+          "",
+          ""
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "User/Access Type",
+          "User/Access Type",
+          "",
+          ""
+        ],
+        [
+          "Date Tested",
+          "",
+          "Type of System",
+          "Type of System",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-Conditions",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Action Description",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Verification Steps",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Test Scenario",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "index": 32,
+      "type": "table",
+      "rows": [
+        [
+          "FUNCTIONALITY TEST DOCUMENT",
+          "FUNCTIONALITY TEST DOCUMENT",
+          "Module Name",
+          "Module Name",
+          "",
+          ""
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "Function Name",
+          "Function Name",
+          "",
+          ""
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "User/Access Type",
+          "User/Access Type",
+          "",
+          ""
+        ],
+        [
+          "Date Tested",
+          "",
+          "Type of System",
+          "Type of System",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-Conditions",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Action Description",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Verification Steps",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Test Scenario",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "index": 34,
+      "type": "table",
+      "rows": [
+        [
+          "FUNCTIONALITY TEST DOCUMENT",
+          "FUNCTIONALITY TEST DOCUMENT",
+          "Module Name",
+          "Module Name",
+          "",
+          ""
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "Function Name",
+          "Function Name",
+          "",
+          ""
+        ],
+        [
+          "Test Cycle No.",
+          "",
+          "User/Access Type",
+          "User/Access Type",
+          "",
+          ""
+        ],
+        [
+          "Date Tested",
+          "",
+          "Type of System",
+          "Type of System",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-Conditions",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Action Description",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Verification Steps",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Test Scenario",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      ]
+    }
+  ]
+}

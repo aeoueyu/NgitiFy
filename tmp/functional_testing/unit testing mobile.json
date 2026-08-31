@@ -1,0 +1,2141 @@
+{
+  "path": "C:\\Users\\Administrator\\Downloads\\unit testing mobile.docx",
+  "sections": [
+    {
+      "page_width_in": 8.5,
+      "page_height_in": 11.0,
+      "top_margin_in": 1.0,
+      "bottom_margin_in": 1.0,
+      "left_margin_in": 1.0,
+      "right_margin_in": 1.0,
+      "header_distance_in": 0.5,
+      "footer_distance_in": 0.5,
+      "header": [
+        ""
+      ],
+      "footer": [
+        ""
+      ]
+    }
+  ],
+  "inline_shapes": 101,
+  "blocks": [
+    {
+      "index": 0,
+      "type": "table",
+      "rows": [
+        [
+          "UNIT TEST DOCUMENT",
+          "UNIT TEST DOCUMENT",
+          "Module Name",
+          "LOGIN MODULE",
+          "LOGIN MODULE",
+          "LOGIN MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "Component Name",
+          "LOGIN",
+          "LOGIN",
+          "LOGIN"
+        ],
+        [
+          "Date Tested",
+          "08/06/2026",
+          "Type of System",
+          "Mobile Application",
+          "Mobile Application",
+          "Mobile Application"
+        ],
+        [
+          "Pre-conditions",
+          "Launch the NgitiFy mobile app; an active patient account exists",
+          "Launch the NgitiFy mobile app; an active patient account exists",
+          "Launch the NgitiFy mobile app; an active patient account exists",
+          "Launch the NgitiFy mobile app; an active patient account exists",
+          "Launch the NgitiFy mobile app; an active patient account exists"
+        ],
+        [
+          "Action Description",
+          "The email and password must be validated",
+          "The email and password must be validated",
+          "The email and password must be validated",
+          "The email and password must be validated",
+          "The email and password must be validated"
+        ],
+        [
+          "Verification Steps",
+          "The dashboard must display",
+          "The dashboard must display",
+          "The dashboard must display",
+          "The dashboard must display",
+          "The dashboard must display"
+        ],
+        [
+          "Test Scenario",
+          "Data\n(Input Values)",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Correct email and password",
+          "The dashboard must display",
+          "The dashboard must display",
+          "",
+          "PASSED"
+        ],
+        [
+          "2",
+          "Correct email and incorrect password",
+          "The message must display “Invalid email or password”",
+          "The message must display “Invalid email or password”",
+          "",
+          "PASSED"
+        ],
+        [
+          "3",
+          "Incorrect email and correct password",
+          "The message must display “Invalid email or password”",
+          "The message must display “Invalid email or password”",
+          "",
+          "PASSED"
+        ],
+        [
+          "4",
+          "Incorrect email and password",
+          "The message must display \"Invalid email and password\"",
+          "The message must display \"Invalid email and password\"",
+          "",
+          "PASSED"
+        ],
+        [
+          "5",
+          "Empty email and password",
+          "The message must display “Email address is required” and “Password is required”",
+          "The message must display “Email address is required” and “Password is required”",
+          "",
+          "PASSED"
+        ],
+        [
+          "6",
+          "Too many failed login attempts",
+          "The message must display “Too many login attempts. Please try again in 15 minutes.”",
+          "The message must display “Too many login attempts. Please try again in 15 minutes.”",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 2,
+      "type": "table",
+      "rows": [
+        [
+          "UNIT TEST DOCUMENT",
+          "UNIT TEST DOCUMENT",
+          "Module Name",
+          "LOGIN MODULE",
+          "LOGIN MODULE",
+          "LOGIN MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "Component Name",
+          "FORGOT PASSWORD",
+          "FORGOT PASSWORD",
+          "FORGOT PASSWORD"
+        ],
+        [
+          "Date Tested",
+          "08/06/2026",
+          "Type of System",
+          "Mobile Application",
+          "Mobile Application",
+          "Mobile Application"
+        ],
+        [
+          "Pre-conditions",
+          "Launch the NgitiFy mobile app, open the Login screen, and tap the Forgot Password link",
+          "Launch the NgitiFy mobile app, open the Login screen, and tap the Forgot Password link",
+          "Launch the NgitiFy mobile app, open the Login screen, and tap the Forgot Password link",
+          "Launch the NgitiFy mobile app, open the Login screen, and tap the Forgot Password link",
+          "Launch the NgitiFy mobile app, open the Login screen, and tap the Forgot Password link"
+        ],
+        [
+          "Action Description",
+          "The email must be validated",
+          "The email must be validated",
+          "The email must be validated",
+          "The email must be validated",
+          "The email must be validated"
+        ],
+        [
+          "Verification Steps",
+          "The verification methods page must display",
+          "The verification methods page must display",
+          "The verification methods page must display",
+          "The verification methods page must display",
+          "The verification methods page must display"
+        ],
+        [
+          "Test Scenario",
+          "Data\n(Input Values)",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Enter email address",
+          "The verification code page must display",
+          "The verification code page must display",
+          "",
+          "PASSED"
+        ],
+        [
+          "2",
+          "Empty email address field",
+          "The Send Verification Code button must be disabled",
+          "The Send Verification Code button must be disabled",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 4,
+      "type": "table",
+      "rows": [
+        [
+          "UNIT TEST DOCUMENT",
+          "UNIT TEST DOCUMENT",
+          "Module Name",
+          "LOGIN MODULE",
+          "LOGIN MODULE",
+          "LOGIN MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "Component Name",
+          "FORGOT PASSWORD - OTP",
+          "FORGOT PASSWORD - OTP",
+          "FORGOT PASSWORD - OTP"
+        ],
+        [
+          "Date Tested",
+          "08/06/2026",
+          "Type of System",
+          "Mobile Application",
+          "Mobile Application",
+          "Mobile Application"
+        ],
+        [
+          "Pre-conditions",
+          "On the Forgot Password screen, enter the registered patient email address and request a verification code",
+          "On the Forgot Password screen, enter the registered patient email address and request a verification code",
+          "On the Forgot Password screen, enter the registered patient email address and request a verification code",
+          "On the Forgot Password screen, enter the registered patient email address and request a verification code",
+          "On the Forgot Password screen, enter the registered patient email address and request a verification code"
+        ],
+        [
+          "Action Description",
+          "The OTP must be validated",
+          "The OTP must be validated",
+          "The OTP must be validated",
+          "The OTP must be validated",
+          "The OTP must be validated"
+        ],
+        [
+          "Verification Steps",
+          "The reset password page must display",
+          "The reset password page must display",
+          "The reset password page must display",
+          "The reset password page must display",
+          "The reset password page must display"
+        ],
+        [
+          "Test Scenario",
+          "Data\n(Input Values)",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Correct OTP",
+          "The reset password page must display",
+          "The reset password page must display",
+          "",
+          "PASSED"
+        ],
+        [
+          "2",
+          "Incorrect OTP",
+          "The message must display “Invalid or expired OTP”",
+          "The message must display “Invalid or expired OTP”",
+          "",
+          "PASSED"
+        ],
+        [
+          "3",
+          "Resend OTP",
+          "The resend countdown must restart",
+          "The resend countdown must restart",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 6,
+      "type": "table",
+      "rows": [
+        [
+          "UNIT TEST DOCUMENT",
+          "UNIT TEST DOCUMENT",
+          "Module Name",
+          "LOGIN MODULE",
+          "LOGIN MODULE",
+          "LOGIN MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "Component Name",
+          "RESET PASSWORD",
+          "RESET PASSWORD",
+          "RESET PASSWORD"
+        ],
+        [
+          "Date Tested",
+          "08/06/2026",
+          "Type of System",
+          "Mobile Application",
+          "Mobile Application",
+          "Mobile Application"
+        ],
+        [
+          "Pre-conditions",
+          "On the OTP verification step, enter a valid OTP to continue to the new-password form",
+          "On the OTP verification step, enter a valid OTP to continue to the new-password form",
+          "On the OTP verification step, enter a valid OTP to continue to the new-password form",
+          "On the OTP verification step, enter a valid OTP to continue to the new-password form",
+          "On the OTP verification step, enter a valid OTP to continue to the new-password form"
+        ],
+        [
+          "Action Description",
+          "The new and confirm new password must be validated",
+          "The new and confirm new password must be validated",
+          "The new and confirm new password must be validated",
+          "The new and confirm new password must be validated",
+          "The new and confirm new password must be validated"
+        ],
+        [
+          "Verification Steps",
+          "The password must be reset and the login page must display",
+          "The password must be reset and the login page must display",
+          "The password must be reset and the login page must display",
+          "The password must be reset and the login page must display",
+          "The password must be reset and the login page must display"
+        ],
+        [
+          "Test Scenario",
+          "Data\n(Input Values)",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "New and confirm new password matched",
+          "The Successful Password Change page must display",
+          "The Successful Password Change page must display",
+          "",
+          "PASSED"
+        ],
+        [
+          "2",
+          "Invalid new password format",
+          "The Reset Password button must be disabled",
+          "The Reset Password button must be disabled",
+          "",
+          "PASSED"
+        ],
+        [
+          "3",
+          "New and confirm new password do not match",
+          "The message must display “Passwords do not match”",
+          "The message must display “Passwords do not match”",
+          "",
+          "PASSED"
+        ],
+        [
+          "4",
+          "Empty new password and confirm new password",
+          "The enter button must be disabled",
+          "The enter button must be disabled",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 8,
+      "type": "table",
+      "rows": [
+        [
+          "UNIT TEST DOCUMENT",
+          "UNIT TEST DOCUMENT",
+          "Module Name",
+          "ACCOUNT SETTINGS MODULE",
+          "ACCOUNT SETTINGS MODULE",
+          "ACCOUNT SETTINGS MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "Component Name",
+          "EDIT PROFILE",
+          "EDIT PROFILE",
+          "EDIT PROFILE"
+        ],
+        [
+          "Date Tested",
+          "08/06/2026",
+          "Type of System",
+          "Mobile Application",
+          "Mobile Application",
+          "Mobile Application"
+        ],
+        [
+          "Pre-conditions",
+          "Login as a patient, tap Profile on the bottom navigation bar, and select Edit profile",
+          "Login as a patient, tap Profile on the bottom navigation bar, and select Edit profile",
+          "Login as a patient, tap Profile on the bottom navigation bar, and select Edit profile",
+          "Login as a patient, tap Profile on the bottom navigation bar, and select Edit profile",
+          "Login as a patient, tap Profile on the bottom navigation bar, and select Edit profile"
+        ],
+        [
+          "Action Description",
+          "The user details must be validated",
+          "The user details must be validated",
+          "The user details must be validated",
+          "The user details must be validated",
+          "The user details must be validated"
+        ],
+        [
+          "Verification Steps",
+          "The user details must be updated",
+          "The user details must be updated",
+          "The user details must be updated",
+          "The user details must be updated",
+          "The user details must be updated"
+        ],
+        [
+          "Test Scenario",
+          "Data\n(Input Values)",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Complete required fields",
+          "A confirmation message must appear, and once confirmed, it must say “Profile Updated. Your profile information has been successfully saved”",
+          "A confirmation message must appear, and once confirmed, it must say “Profile Updated. Your profile information has been successfully saved”",
+          "",
+          "PASSED"
+        ],
+        [
+          "2",
+          "Empty required fields",
+          "The message must display “Required”",
+          "The message must display “Required”",
+          "",
+          "PASSED"
+        ],
+        [
+          "3",
+          "Invalid Contact Number format",
+          "The message must display “Invalid format (e.g. 9xxxxxxxxx)”",
+          "The message must display “Invalid format (e.g. 9xxxxxxxxx)”",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 10,
+      "type": "table",
+      "rows": [
+        [
+          "UNIT TEST DOCUMENT",
+          "UNIT TEST DOCUMENT",
+          "Module Name",
+          "ACCOUNT SETTINGS MODULE",
+          "ACCOUNT SETTINGS MODULE",
+          "ACCOUNT SETTINGS MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "Component Name",
+          "CHANGE EMAIL",
+          "CHANGE EMAIL",
+          "CHANGE EMAIL"
+        ],
+        [
+          "Date Tested",
+          "08/06/2026",
+          "Type of System",
+          "Mobile Application",
+          "Mobile Application",
+          "Mobile Application"
+        ],
+        [
+          "Pre-conditions",
+          "Login as a patient, tap Profile on the bottom navigation bar, and select Change Email",
+          "Login as a patient, tap Profile on the bottom navigation bar, and select Change Email",
+          "Login as a patient, tap Profile on the bottom navigation bar, and select Change Email",
+          "Login as a patient, tap Profile on the bottom navigation bar, and select Change Email",
+          "Login as a patient, tap Profile on the bottom navigation bar, and select Change Email"
+        ],
+        [
+          "Action Description",
+          "The email and password must be validated",
+          "The email and password must be validated",
+          "The email and password must be validated",
+          "The email and password must be validated",
+          "The email and password must be validated"
+        ],
+        [
+          "Verification Steps",
+          "The email must be updated",
+          "The email must be updated",
+          "The email must be updated",
+          "The email must be updated",
+          "The email must be updated"
+        ],
+        [
+          "Test Scenario",
+          "Data\n(Input Values)",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Valid Email Address format and correct password",
+          "The message must display “Request Link Sent. Verification email sent. Please check your inbox to reactivate your account. You will now be logged out. Please verify your new email before logging in again.”",
+          "The message must display “Request Link Sent. Verification email sent. Please check your inbox to reactivate your account. You will now be logged out. Please verify your new email before logging in again.”",
+          "",
+          "PASSED"
+        ],
+        [
+          "2",
+          "Invalid Email Address format",
+          "The message must display “Please enter a valid email address”",
+          "The message must display “Please enter a valid email address”",
+          "",
+          "PASSED"
+        ],
+        [
+          "3",
+          "Valid Email Address format and incorrect password",
+          "The message must display “Incorrect current password”",
+          "The message must display “Incorrect current password”",
+          "",
+          "PASSED"
+        ],
+        [
+          "4",
+          "Invalid Email Address format and incorrect password",
+          "The message must display “Please enter a valid email address” and “Incorrect current password”",
+          "The message must display “Please enter a valid email address” and “Incorrect current password”",
+          "",
+          "PASSED"
+        ],
+        [
+          "5",
+          "New email is same as the Current Email Address",
+          "The message must display “New email must be different from the current email.”",
+          "The message must display “New email must be different from the current email.”",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 12,
+      "type": "table",
+      "rows": [
+        [
+          "UNIT TEST DOCUMENT",
+          "UNIT TEST DOCUMENT",
+          "Module Name",
+          "ACCOUNT SETTINGS MODULE",
+          "ACCOUNT SETTINGS MODULE",
+          "ACCOUNT SETTINGS MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "Component Name",
+          "CHANGE PASSWORD",
+          "CHANGE PASSWORD",
+          "CHANGE PASSWORD"
+        ],
+        [
+          "Date Tested",
+          "08/06/2026",
+          "Type of System",
+          "Mobile Application",
+          "Mobile Application",
+          "Mobile Application"
+        ],
+        [
+          "Pre-conditions",
+          "Login as a patient, tap Profile on the bottom navigation bar, open Settings, and select Change Password",
+          "Login as a patient, tap Profile on the bottom navigation bar, open Settings, and select Change Password",
+          "Login as a patient, tap Profile on the bottom navigation bar, open Settings, and select Change Password",
+          "Login as a patient, tap Profile on the bottom navigation bar, open Settings, and select Change Password",
+          "Login as a patient, tap Profile on the bottom navigation bar, open Settings, and select Change Password"
+        ],
+        [
+          "Action Description",
+          "The current password, new password, and confirm new password must be validated",
+          "The current password, new password, and confirm new password must be validated",
+          "The current password, new password, and confirm new password must be validated",
+          "The current password, new password, and confirm new password must be validated",
+          "The current password, new password, and confirm new password must be validated"
+        ],
+        [
+          "Verification Steps",
+          "The password must be updated",
+          "The password must be updated",
+          "The password must be updated",
+          "The password must be updated",
+          "The password must be updated"
+        ],
+        [
+          "Test Scenario",
+          "Data\n(Input Values)",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Correct Current Password, correct New Password format, and New and Confirm New Password Match.",
+          "The message must display “Password changed. You will be logged out for security”",
+          "The message must display “Password changed. You will be logged out for security”",
+          "",
+          "PASSED"
+        ],
+        [
+          "2",
+          "Empty Required fields",
+          "The message must display “Current password is required”",
+          "The message must display “Current password is required”",
+          "",
+          "PASSED"
+        ],
+        [
+          "3",
+          "Incorrect Current Password",
+          "The message must display “Incorrect password”",
+          "The message must display “Incorrect password”",
+          "",
+          "PASSED"
+        ],
+        [
+          "4",
+          "Incorrect New Password requirements",
+          "The password requirements checklist must be unchecked",
+          "The password requirements checklist must be unchecked",
+          "",
+          "PASSED"
+        ],
+        [
+          "5",
+          "New Password is same as the Current Password",
+          "The message must display “New password cannot be the same as the current password”",
+          "The message must display “New password cannot be the same as the current password”",
+          "",
+          "PASSED"
+        ],
+        [
+          "6",
+          "New Password and Confirm New Password do not match",
+          "The message must display “Passwords do not match”",
+          "The message must display “Passwords do not match”",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 14,
+      "type": "table",
+      "rows": [
+        [
+          "UNIT TEST DOCUMENT",
+          "UNIT TEST DOCUMENT",
+          "Module Name",
+          "ACCOUNT SETTINGS MODULE",
+          "ACCOUNT SETTINGS MODULE",
+          "ACCOUNT SETTINGS MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "Component Name",
+          "NOTIFICATIONS",
+          "NOTIFICATIONS",
+          "NOTIFICATIONS"
+        ],
+        [
+          "Date Tested",
+          "08/06/2026",
+          "Type of System",
+          "Mobile Application",
+          "Mobile Application",
+          "Mobile Application"
+        ],
+        [
+          "Pre-conditions",
+          "Login as a patient, tap Profile on the bottom navigation bar, open Settings, and scroll to the Notifications section",
+          "Login as a patient, tap Profile on the bottom navigation bar, open Settings, and scroll to the Notifications section",
+          "Login as a patient, tap Profile on the bottom navigation bar, open Settings, and scroll to the Notifications section",
+          "Login as a patient, tap Profile on the bottom navigation bar, open Settings, and scroll to the Notifications section",
+          "Login as a patient, tap Profile on the bottom navigation bar, open Settings, and scroll to the Notifications section"
+        ],
+        [
+          "Action Description",
+          "The Notification preferences must be updated",
+          "The Notification preferences must be updated",
+          "The Notification preferences must be updated",
+          "The Notification preferences must be updated",
+          "The Notification preferences must be updated"
+        ],
+        [
+          "Verification Steps",
+          "Enable or disable notification preferences, save the settings, and reopen the page to verify persistence",
+          "Enable or disable notification preferences, save the settings, and reopen the page to verify persistence",
+          "Enable or disable notification preferences, save the settings, and reopen the page to verify persistence",
+          "Enable or disable notification preferences, save the settings, and reopen the page to verify persistence",
+          "Enable or disable notification preferences, save the settings, and reopen the page to verify persistence"
+        ],
+        [
+          "Test Scenario",
+          "Data\n(Input Values)",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Enable or disable each available notification preference",
+          "The settings must be saved successfully",
+          "The settings must be saved successfully",
+          "",
+          "PASSED"
+        ],
+        [
+          "2",
+          "Reopen Notifications",
+          "The previously saved notification preferences must load correctly",
+          "The previously saved notification preferences must load correctly",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 16,
+      "type": "table",
+      "rows": [
+        [
+          "UNIT TEST DOCUMENT",
+          "UNIT TEST DOCUMENT",
+          "Module Name",
+          "AI PATIENT ENGAGEMENT MODULE",
+          "AI PATIENT ENGAGEMENT MODULE",
+          "AI PATIENT ENGAGEMENT MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "Component Name",
+          "NGITIBOT CHAT",
+          "NGITIBOT CHAT",
+          "NGITIBOT CHAT"
+        ],
+        [
+          "Date Tested",
+          "08/06/2026",
+          "Type of System",
+          "Mobile Application",
+          "Mobile Application",
+          "Mobile Application"
+        ],
+        [
+          "Pre-conditions",
+          "Login as a patient and tap the floating NgitiBot button",
+          "Login as a patient and tap the floating NgitiBot button",
+          "Login as a patient and tap the floating NgitiBot button",
+          "Login as a patient and tap the floating NgitiBot button",
+          "Login as a patient and tap the floating NgitiBot button"
+        ],
+        [
+          "Action Description",
+          "Send a message or select a suggested prompt in NgitiBot",
+          "Send a message or select a suggested prompt in NgitiBot",
+          "Send a message or select a suggested prompt in NgitiBot",
+          "Send a message or select a suggested prompt in NgitiBot",
+          "Send a message or select a suggested prompt in NgitiBot"
+        ],
+        [
+          "Verification Steps",
+          "Verify that patient messages and NgitiBot explanations display in the conversation",
+          "Verify that patient messages and NgitiBot explanations display in the conversation",
+          "Verify that patient messages and NgitiBot explanations display in the conversation",
+          "Verify that patient messages and NgitiBot explanations display in the conversation",
+          "Verify that patient messages and NgitiBot explanations display in the conversation"
+        ],
+        [
+          "Test Scenario",
+          "Data\n(Input Values)",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Enter a supported Dental Health Education question and click Send",
+          "The patient message and NgitiBot educational explanation must display in the conversation",
+          "The patient message and NgitiBot educational explanation must display in the conversation",
+          "",
+          "PASSED"
+        ],
+        [
+          "2",
+          "Select “Explain my current visit recommendation”",
+          "NgitiBot must explain the existing System Recommendation without replacing or overriding it",
+          "NgitiBot must explain the existing System Recommendation without replacing or overriding it",
+          "",
+          "PASSED"
+        ],
+        [
+          "3",
+          "Select “Explain my recent Oral Health Management trend”",
+          "NgitiBot must explain the available Oral Health Management information without providing a diagnosis",
+          "NgitiBot must explain the available Oral Health Management information without providing a diagnosis",
+          "",
+          "PASSED"
+        ],
+        [
+          "4",
+          "Select “Explain my radiograph findings” with an approved dentist finding available",
+          "NgitiBot must explain the dentist-approved radiograph findings",
+          "NgitiBot must explain the dentist-approved radiograph findings",
+          "",
+          "PASSED"
+        ],
+        [
+          "5",
+          "Select “Explain my radiograph findings” without approved dentist findings",
+          "NgitiBot must display that no approved radiograph explanation is available",
+          "NgitiBot must display that no approved radiograph explanation is available",
+          "",
+          "PASSED"
+        ],
+        [
+          "6",
+          "Enter a request for dental diagnosis",
+          "NgitiBot must not provide a diagnosis and must recommend consulting the dentist",
+          "NgitiBot must not provide a diagnosis and must recommend consulting the dentist",
+          "",
+          "PASSED"
+        ],
+        [
+          "7",
+          "Enter unsupported question",
+          "The message must display “I am here as your Dentime AI patient care companion, so I can only assist you with dental health topics, oral care guidance, and your clinic appointments”",
+          "The message must display “I am here as your Dentime AI patient care companion, so I can only assist you with dental health topics, oral care guidance, and your clinic appointments”",
+          "",
+          "PASSED"
+        ],
+        [
+          "8",
+          "Empty message field",
+          "The Send button must be disabled",
+          "The Send button must be disabled",
+          "",
+          "PASSED"
+        ],
+        [
+          "9",
+          "Existing conversation and click Clear",
+          "The conversation must reset to the initial AI welcome message",
+          "The conversation must reset to the initial AI welcome message",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 18,
+      "type": "table",
+      "rows": [
+        [
+          "UNIT TEST DOCUMENT",
+          "UNIT TEST DOCUMENT",
+          "Module Name",
+          "AI PATIENT CARE COMPANION MODULE",
+          "AI PATIENT CARE COMPANION MODULE",
+          "AI PATIENT CARE COMPANION MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "Component Name",
+          "NGITIBOT CARE CONTEXT",
+          "NGITIBOT CARE CONTEXT",
+          "NGITIBOT CARE CONTEXT"
+        ],
+        [
+          "Date Tested",
+          "08/06/2026",
+          "Type of System",
+          "Mobile Application",
+          "Mobile Application",
+          "Mobile Application"
+        ],
+        [
+          "Pre-conditions",
+          "Login as a patient, tap the floating NgitiBot button, and ensure patient care information is available",
+          "Login as a patient, tap the floating NgitiBot button, and ensure patient care information is available",
+          "Login as a patient, tap the floating NgitiBot button, and ensure patient care information is available",
+          "Login as a patient, tap the floating NgitiBot button, and ensure patient care information is available",
+          "Login as a patient, tap the floating NgitiBot button, and ensure patient care information is available"
+        ],
+        [
+          "Action Description",
+          "View the patient’s existing care context and System Recommendation",
+          "View the patient’s existing care context and System Recommendation",
+          "View the patient’s existing care context and System Recommendation",
+          "View the patient’s existing care context and System Recommendation",
+          "View the patient’s existing care context and System Recommendation"
+        ],
+        [
+          "Verification Steps",
+          "Verify the Recommended Visit Window, Oral Health Management information, and Dental Health Education context",
+          "Verify the Recommended Visit Window, Oral Health Management information, and Dental Health Education context",
+          "Verify the Recommended Visit Window, Oral Health Management information, and Dental Health Education context",
+          "Verify the Recommended Visit Window, Oral Health Management information, and Dental Health Education context",
+          "Verify the Recommended Visit Window, Oral Health Management information, and Dental Health Education context"
+        ],
+        [
+          "Test Scenario",
+          "Data\n(Input Values)",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Existing System Recommendation",
+          "The Recommended Visit Window, recommendation reason, and System Recommendation must display",
+          "The Recommended Visit Window, recommendation reason, and System Recommendation must display",
+          "",
+          "PASSED"
+        ],
+        [
+          "2",
+          "Existing Daily Oral Health Log",
+          "The recent Oral Health Management context and latest saved log must display",
+          "The recent Oral Health Management context and latest saved log must display",
+          "",
+          "PASSED"
+        ],
+        [
+          "3",
+          "No recent Daily Oral Health Log",
+          "The message must display “Nothing logged yet”",
+          "The message must display “Nothing logged yet”",
+          "",
+          "PASSED"
+        ],
+        [
+          "4",
+          "No supported clinic information for a visit window",
+          "The recommendation must display “No visit window is available yet”",
+          "The recommendation must display “No visit window is available yet”",
+          "",
+          "PASSED"
+        ],
+        [
+          "5",
+          "Existing dentist-approved radiograph finding",
+          "The radiograph explanation context must display",
+          "The radiograph explanation context must display",
+          "",
+          "PASSED"
+        ],
+        [
+          "8",
+          "No approved radiograph findings",
+          "The message must display that no radiograph explanation is currently available",
+          "The message must display that no radiograph explanation is currently available",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 20,
+      "type": "table",
+      "rows": [
+        [
+          "UNIT TEST DOCUMENT",
+          "UNIT TEST DOCUMENT",
+          "Module Name",
+          "PATIENT APPOINTMENTS MODULE",
+          "PATIENT APPOINTMENTS MODULE",
+          "PATIENT APPOINTMENTS MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "Component Name",
+          "MY APPOINTMENTS",
+          "MY APPOINTMENTS",
+          "MY APPOINTMENTS"
+        ],
+        [
+          "Date Tested",
+          "08/06/2026",
+          "Type of System",
+          "Mobile Application",
+          "Mobile Application",
+          "Mobile Application"
+        ],
+        [
+          "Pre-conditions",
+          "Login as a patient and tap Visits on the bottom navigation bar",
+          "Login as a patient and tap Visits on the bottom navigation bar",
+          "Login as a patient and tap Visits on the bottom navigation bar",
+          "Login as a patient and tap Visits on the bottom navigation bar",
+          "Login as a patient and tap Visits on the bottom navigation bar"
+        ],
+        [
+          "Action Description",
+          "View patient’s upcoming and previous appointments",
+          "View patient’s upcoming and previous appointments",
+          "View patient’s upcoming and previous appointments",
+          "View patient’s upcoming and previous appointments",
+          "View patient’s upcoming and previous appointments"
+        ],
+        [
+          "Verification Steps",
+          "Verify that the patient’s appointment records and details are displayed",
+          "Verify that the patient’s appointment records and details are displayed",
+          "Verify that the patient’s appointment records and details are displayed",
+          "Verify that the patient’s appointment records and details are displayed",
+          "Verify that the patient’s appointment records and details are displayed"
+        ],
+        [
+          "Test Scenario",
+          "Data\n(Input Values)",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Patient has upcoming appointment",
+          "The upcoming appointment must display",
+          "The upcoming appointment must display",
+          "",
+          "PASSED"
+        ],
+        [
+          "2",
+          "Patient has completed or cancelled appointment",
+          "The appointment must display in the appointment history",
+          "The appointment must display in the appointment history",
+          "",
+          "PASSED"
+        ],
+        [
+          "3",
+          "Patient has no upcoming appointment",
+          "The message must display “No upcoming appointment”",
+          "The message must display “No upcoming appointment”",
+          "",
+          "PASSED"
+        ],
+        [
+          "4",
+          "Patient has no completed or cancelled appointment",
+          "The message must display “No visit history yet”",
+          "The message must display “No visit history yet”",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 22,
+      "type": "table",
+      "rows": [
+        [
+          "UNIT TEST DOCUMENT",
+          "UNIT TEST DOCUMENT",
+          "Module Name",
+          "PATIENT APPOINTMENTS MODULE",
+          "PATIENT APPOINTMENTS MODULE",
+          "PATIENT APPOINTMENTS MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "Component Name",
+          "BOOK APPOINTMENT",
+          "BOOK APPOINTMENT",
+          "BOOK APPOINTMENT"
+        ],
+        [
+          "Date Tested",
+          "08/06/2026",
+          "Type of System",
+          "Mobile Application",
+          "Mobile Application",
+          "Mobile Application"
+        ],
+        [
+          "Pre-conditions",
+          "Login as a patient, tap Visits on the bottom navigation bar, and tap Book Appointment",
+          "Login as a patient, tap Visits on the bottom navigation bar, and tap Book Appointment",
+          "Login as a patient, tap Visits on the bottom navigation bar, and tap Book Appointment",
+          "Login as a patient, tap Visits on the bottom navigation bar, and tap Book Appointment",
+          "Login as a patient, tap Visits on the bottom navigation bar, and tap Book Appointment"
+        ],
+        [
+          "Action Description",
+          "The appointment information must be validated",
+          "The appointment information must be validated",
+          "The appointment information must be validated",
+          "The appointment information must be validated",
+          "The appointment information must be validated"
+        ],
+        [
+          "Verification Steps",
+          "The new appointment must be added to My Appointments",
+          "The new appointment must be added to My Appointments",
+          "The new appointment must be added to My Appointments",
+          "The new appointment must be added to My Appointments",
+          "The new appointment must be added to My Appointments"
+        ],
+        [
+          "Test Scenario",
+          "Data\n(Input Values)",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Complete and valid required fields, the patient has no ongoing appointment, and selected date and time are available",
+          "The appointment must be submitted successfully and appear in My Appointments",
+          "The appointment must be submitted successfully and appear in My Appointments",
+          "",
+          "PASSED"
+        ],
+        [
+          "2",
+          "Patient has an existing ongoing appointment",
+          "The patient must not be able to book another appointment",
+          "The patient must not be able to book another appointment",
+          "",
+          "PASSED"
+        ],
+        [
+          "3",
+          "Patient’s previous appointment has Completed or Cancelled status",
+          "The patient must be able to book a new appointment",
+          "The patient must be able to book a new appointment",
+          "",
+          "PASSED"
+        ],
+        [
+          "4",
+          "Select a fully booked appointment date",
+          "The fully booked date must not be available for selection",
+          "The fully booked date must not be available for selection",
+          "",
+          "PASSED"
+        ],
+        [
+          "5",
+          "Select an appointment time already booked by another patient",
+          "The booked appointment time must not be available for selection",
+          "The booked appointment time must not be available for selection",
+          "",
+          "PASSED"
+        ],
+        [
+          "6",
+          "Select an available appointment date and time",
+          "The selected appointment date and time must be available for booking",
+          "The selected appointment date and time must be available for booking",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 24,
+      "type": "table",
+      "rows": [
+        [
+          "UNIT TEST DOCUMENT",
+          "UNIT TEST DOCUMENT",
+          "Module Name",
+          "PATIENT APPOINTMENTS MODULE",
+          "PATIENT APPOINTMENTS MODULE",
+          "PATIENT APPOINTMENTS MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "Component Name",
+          "MANAGE APPOINTMENT",
+          "MANAGE APPOINTMENT",
+          "MANAGE APPOINTMENT"
+        ],
+        [
+          "Date Tested",
+          "08/06/2026",
+          "Type of System",
+          "Mobile Application",
+          "Mobile Application",
+          "Mobile Application"
+        ],
+        [
+          "Pre-conditions",
+          "Login as Patient, tap Visits on the bottom navigation bar, then select an upcoming appointment",
+          "Login as Patient, tap Visits on the bottom navigation bar, then select an upcoming appointment",
+          "Login as Patient, tap Visits on the bottom navigation bar, then select an upcoming appointment",
+          "Login as Patient, tap Visits on the bottom navigation bar, then select an upcoming appointment",
+          "Login as Patient, tap Visits on the bottom navigation bar, then select an upcoming appointment"
+        ],
+        [
+          "Action Description",
+          "Cancel or reschedule the selected appointment based on the allowed appointment conditions",
+          "Cancel or reschedule the selected appointment based on the allowed appointment conditions",
+          "Cancel or reschedule the selected appointment based on the allowed appointment conditions",
+          "Cancel or reschedule the selected appointment based on the allowed appointment conditions",
+          "Cancel or reschedule the selected appointment based on the allowed appointment conditions"
+        ],
+        [
+          "Verification Steps",
+          "The selected appointment must be cancelled or rescheduled without creating another appointment",
+          "The selected appointment must be cancelled or rescheduled without creating another appointment",
+          "The selected appointment must be cancelled or rescheduled without creating another appointment",
+          "The selected appointment must be cancelled or rescheduled without creating another appointment",
+          "The selected appointment must be cancelled or rescheduled without creating another appointment"
+        ],
+        [
+          "Test Scenario",
+          "Data\n(Input Values)",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Cancel an eligible Pending or Confirmed appointment with valid cancellation reason",
+          "The appointment status must display Cancelled",
+          "The appointment status must display Cancelled",
+          "",
+          "PASSED"
+        ],
+        [
+          "2",
+          "Cancel an eligible appointment with empty cancellation reason",
+          "The appointment must not be cancelled",
+          "The appointment must not be cancelled",
+          "",
+          "PASSED"
+        ],
+        [
+          "3",
+          "Reschedule an eligible Pending or Confirmed appointment to an available date and time",
+          "The existing appointment must be updated with the new schedule and another appointment record must not be created",
+          "The existing appointment must be updated with the new schedule and another appointment record must not be created",
+          "",
+          "PASSED"
+        ],
+        [
+          "6",
+          "Cancel or reschedule an In Clinic appointment",
+          "The cancel and reschedule actions must not be available",
+          "The cancel and reschedule actions must not be available",
+          "",
+          "PASSED"
+        ],
+        [
+          "7",
+          "Cancel or reschedule a Completed appointment",
+          "The cancel and reschedule actions must not be available",
+          "The cancel and reschedule actions must not be available",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 26,
+      "type": "table",
+      "rows": [
+        [
+          "UNIT TEST DOCUMENT",
+          "UNIT TEST DOCUMENT",
+          "Module Name",
+          "ORAL HEALTH MANAGEMENT MODULE",
+          "ORAL HEALTH MANAGEMENT MODULE",
+          "ORAL HEALTH MANAGEMENT MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "Component Name",
+          "DAILY ORAL HEALTH LOG",
+          "DAILY ORAL HEALTH LOG",
+          "DAILY ORAL HEALTH LOG"
+        ],
+        [
+          "Date Tested",
+          "08/06/2026",
+          "Type of System",
+          "Mobile Application",
+          "Mobile Application",
+          "Mobile Application"
+        ],
+        [
+          "Pre-conditions",
+          "Login as a patient, tap Health on the bottom navigation bar, open Today, and select today or an earlier date",
+          "Login as a patient, tap Health on the bottom navigation bar, open Today, and select today or an earlier date",
+          "Login as a patient, tap Health on the bottom navigation bar, open Today, and select today or an earlier date",
+          "Login as a patient, tap Health on the bottom navigation bar, open Today, and select today or an earlier date",
+          "Login as a patient, tap Health on the bottom navigation bar, open Today, and select today or an earlier date"
+        ],
+        [
+          "Action Description",
+          "The Daily Oral Health Log information must be validated",
+          "The Daily Oral Health Log information must be validated",
+          "The Daily Oral Health Log information must be validated",
+          "The Daily Oral Health Log information must be validated",
+          "The Daily Oral Health Log information must be validated"
+        ],
+        [
+          "Verification Steps",
+          "Select the oral health information, save the entry, and verify the saved Daily Oral Health Log",
+          "Select the oral health information, save the entry, and verify the saved Daily Oral Health Log",
+          "Select the oral health information, save the entry, and verify the saved Daily Oral Health Log",
+          "Select the oral health information, save the entry, and verify the saved Daily Oral Health Log",
+          "Select the oral health information, save the entry, and verify the saved Daily Oral Health Log"
+        ],
+        [
+          "Test Scenario",
+          "Data\n(Input Values)",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Select any valid symptom, oral care habit, or other factor and click Save Entry",
+          "The message must display “Daily oral health log saved”",
+          "The message must display “Daily oral health log saved”",
+          "",
+          "PASSED"
+        ],
+        [
+          "2",
+          "Empty symptom, oral care, other factor, and notes",
+          "The message must display “Select at least one symptom, care item, risk factor, or note before saving”",
+          "The message must display “Select at least one symptom, care item, risk factor, or note before saving”",
+          "",
+          "PASSED"
+        ],
+        [
+          "3",
+          "Select “No Symptoms” then select another symptom",
+          "“No Symptoms” and another symptom must not remain selected at the same time",
+          "“No Symptoms” and another symptom must not remain selected at the same time",
+          "",
+          "PASSED"
+        ],
+        [
+          "4",
+          "Select Toothache, Swelling, Jaw Pain, or Mouth Sore and enter optional Severity or Duration",
+          "The message must display “Daily oral health log saved”",
+          "The message must display “Daily oral health log saved”",
+          "",
+          "PASSED"
+        ],
+        [
+          "5",
+          "Enter a valid optional note",
+          "The message must display “Daily oral health log saved”",
+          "The message must display “Daily oral health log saved”",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 28,
+      "type": "table",
+      "rows": [
+        [
+          "UNIT TEST DOCUMENT",
+          "UNIT TEST DOCUMENT",
+          "Module Name",
+          "ORAL HEALTH MANAGEMENT MODULE",
+          "ORAL HEALTH MANAGEMENT MODULE",
+          "ORAL HEALTH MANAGEMENT MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "Component Name",
+          "ORAL HEALTH CALENDAR & HISTORY",
+          "ORAL HEALTH CALENDAR & HISTORY",
+          "ORAL HEALTH CALENDAR & HISTORY"
+        ],
+        [
+          "Date Tested",
+          "08/06/2026",
+          "Type of System",
+          "Mobile Application",
+          "Mobile Application",
+          "Mobile Application"
+        ],
+        [
+          "Pre-conditions",
+          "Login as a patient, tap Health on the bottom navigation bar, and open Calendar",
+          "Login as a patient, tap Health on the bottom navigation bar, and open Calendar",
+          "Login as a patient, tap Health on the bottom navigation bar, and open Calendar",
+          "Login as a patient, tap Health on the bottom navigation bar, and open Calendar",
+          "Login as a patient, tap Health on the bottom navigation bar, and open Calendar"
+        ],
+        [
+          "Action Description",
+          "View the patient’s Oral Health Management records by selected date",
+          "View the patient’s Oral Health Management records by selected date",
+          "View the patient’s Oral Health Management records by selected date",
+          "View the patient’s Oral Health Management records by selected date",
+          "View the patient’s Oral Health Management records by selected date"
+        ],
+        [
+          "Verification Steps",
+          "Select different calendar dates and verify the corresponding Oral Health Management information",
+          "Select different calendar dates and verify the corresponding Oral Health Management information",
+          "Select different calendar dates and verify the corresponding Oral Health Management information",
+          "Select different calendar dates and verify the corresponding Oral Health Management information",
+          "Select different calendar dates and verify the corresponding Oral Health Management information"
+        ],
+        [
+          "Test Scenario",
+          "Data\n(Input Values)",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Select a date with an existing Daily Oral Health Log",
+          "The selected Daily Oral Health Log must display and the selected date must display “Patient Log”",
+          "The selected Daily Oral Health Log must display and the selected date must display “Patient Log”",
+          "",
+          "PASSED"
+        ],
+        [
+          "2",
+          "Select a date without a Patient Log, appointment, clinic record, or recommendation",
+          "The message must display “Nothing logged yet”",
+          "The message must display “Nothing logged yet”",
+          "",
+          "PASSED"
+        ],
+        [
+          "3",
+          "No saved Daily Oral Health Log history",
+          "The message must display “Not enough information yet”",
+          "The message must display “Not enough information yet”",
+          "",
+          "PASSED"
+        ],
+        [
+          "4",
+          "Select another date using the week selector or month calendar",
+          "The Oral Health Management information must update based on the selected date",
+          "The Oral Health Management information must update based on the selected date",
+          "",
+          "PASSED"
+        ],
+        [
+          "5",
+          "Date contains a saved Daily Oral Health Log",
+          "The corresponding Daily Log marker must display on the selected date",
+          "The corresponding Daily Log marker must display on the selected date",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 30,
+      "type": "table",
+      "rows": [
+        [
+          "UNIT TEST DOCUMENT",
+          "UNIT TEST DOCUMENT",
+          "Module Name",
+          "ORAL HEALTH MANAGEMENT MODULE",
+          "ORAL HEALTH MANAGEMENT MODULE",
+          "ORAL HEALTH MANAGEMENT MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "Component Name",
+          "ORAL HEALTH TRENDS",
+          "ORAL HEALTH TRENDS",
+          "ORAL HEALTH TRENDS"
+        ],
+        [
+          "Date Tested",
+          "08/06/2026",
+          "Type of System",
+          "Mobile Application",
+          "Mobile Application",
+          "Mobile Application"
+        ],
+        [
+          "Pre-conditions",
+          "Login as a patient, tap Health on the bottom navigation bar, and open Trends",
+          "Login as a patient, tap Health on the bottom navigation bar, and open Trends",
+          "Login as a patient, tap Health on the bottom navigation bar, and open Trends",
+          "Login as a patient, tap Health on the bottom navigation bar, and open Trends",
+          "Login as a patient, tap Health on the bottom navigation bar, and open Trends"
+        ],
+        [
+          "Action Description",
+          "View the patient’s Oral Health Management trends from saved Patient Logs",
+          "View the patient’s Oral Health Management trends from saved Patient Logs",
+          "View the patient’s Oral Health Management trends from saved Patient Logs",
+          "View the patient’s Oral Health Management trends from saved Patient Logs",
+          "View the patient’s Oral Health Management trends from saved Patient Logs"
+        ],
+        [
+          "Verification Steps",
+          "Verify the calculated 7-day and 30-day trend information",
+          "Verify the calculated 7-day and 30-day trend information",
+          "Verify the calculated 7-day and 30-day trend information",
+          "Verify the calculated 7-day and 30-day trend information",
+          "Verify the calculated 7-day and 30-day trend information"
+        ],
+        [
+          "Test Scenario",
+          "Data\n(Input Values)",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "At least two Daily Oral Health Logs within the last 30 days",
+          "The 7-day and 30-day Oral Health Management trend counts must display",
+          "The 7-day and 30-day Oral Health Management trend counts must display",
+          "",
+          "PASSED"
+        ],
+        [
+          "2",
+          "No Daily Oral Health Logs within the last 30 days",
+          "The message must display “Not enough information yet”",
+          "The message must display “Not enough information yet”",
+          "",
+          "PASSED"
+        ],
+        [
+          "3",
+          "One Daily Oral Health Log within the last 30 days",
+          "The message must display “Not enough information yet”",
+          "The message must display “Not enough information yet”",
+          "",
+          "PASSED"
+        ],
+        [
+          "4",
+          "At least three logs but no symptoms within the last 30 days",
+          "The message must display “No symptoms were recorded in this period”",
+          "The message must display “No symptoms were recorded in this period”",
+          "",
+          "PASSED"
+        ],
+        [
+          "5",
+          "At least three logs but no other risk factors within the last 30 days",
+          "The message must display “No risk factors were recorded in this period”",
+          "The message must display “No risk factors were recorded in this period”",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 32,
+      "type": "table",
+      "rows": [
+        [
+          "UNIT TEST DOCUMENT",
+          "UNIT TEST DOCUMENT",
+          "Module Name",
+          "ORAL HEALTH MANAGEMENT MODULE",
+          "ORAL HEALTH MANAGEMENT MODULE",
+          "ORAL HEALTH MANAGEMENT MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "Component Name",
+          "RECOMMENDED VISIT WINDOW",
+          "RECOMMENDED VISIT WINDOW",
+          "RECOMMENDED VISIT WINDOW"
+        ],
+        [
+          "Date Tested",
+          "08/06/2026",
+          "Type of System",
+          "Mobile Application",
+          "Mobile Application",
+          "Mobile Application"
+        ],
+        [
+          "Pre-conditions",
+          "Login as a patient, tap Health on the bottom navigation bar, and ensure the Recommended Visit Window section is available",
+          "Login as a patient, tap Health on the bottom navigation bar, and ensure the Recommended Visit Window section is available",
+          "Login as a patient, tap Health on the bottom navigation bar, and ensure the Recommended Visit Window section is available",
+          "Login as a patient, tap Health on the bottom navigation bar, and ensure the Recommended Visit Window section is available",
+          "Login as a patient, tap Health on the bottom navigation bar, and ensure the Recommended Visit Window section is available"
+        ],
+        [
+          "Action Description",
+          "Display the patient’s Recommended Visit Window based on the available clinic information and Oral Health Management rules",
+          "Display the patient’s Recommended Visit Window based on the available clinic information and Oral Health Management rules",
+          "Display the patient’s Recommended Visit Window based on the available clinic information and Oral Health Management rules",
+          "Display the patient’s Recommended Visit Window based on the available clinic information and Oral Health Management rules",
+          "Display the patient’s Recommended Visit Window based on the available clinic information and Oral Health Management rules"
+        ],
+        [
+          "Verification Steps",
+          "Verify the recommendation, source, reason, and visit timing",
+          "Verify the recommendation, source, reason, and visit timing",
+          "Verify the recommendation, source, reason, and visit timing",
+          "Verify the recommendation, source, reason, and visit timing",
+          "Verify the recommendation, source, reason, and visit timing"
+        ],
+        [
+          "Test Scenario",
+          "Data\n(Input Values)",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Dentist Suggested Next Visit exists and no earlier-contact rule applies",
+          "The Dentist Recommendation must remain the primary planned-care recommendation",
+          "The Dentist Recommendation must remain the primary planned-care recommendation",
+          "",
+          "PASSED"
+        ],
+        [
+          "2",
+          "Latest Daily Oral Health Log contains Swelling",
+          "The recommendation must display Contact Clinic guidance without providing a diagnosis",
+          "The recommendation must display Contact Clinic guidance without providing a diagnosis",
+          "",
+          "PASSED"
+        ],
+        [
+          "3",
+          "Latest supported symptom detail has Severe severity",
+          "The recommendation must display Contact Clinic guidance without providing a diagnosis",
+          "The recommendation must display Contact Clinic guidance without providing a diagnosis",
+          "",
+          "PASSED"
+        ],
+        [
+          "4",
+          "No Dentist Suggested Next Visit and insufficient supported clinic treatment history",
+          "The recommendation must display “No visit window is available yet”",
+          "The recommendation must display “No visit window is available yet”",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 34,
+      "type": "table",
+      "rows": [
+        [
+          "UNIT TEST DOCUMENT",
+          "UNIT TEST DOCUMENT",
+          "Module Name",
+          "DENTAL HEALTH EDUCATION MODULE",
+          "DENTAL HEALTH EDUCATION MODULE",
+          "DENTAL HEALTH EDUCATION MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "Component Name",
+          "CONTEXTUAL DENTAL HEALTH EDUCATION",
+          "CONTEXTUAL DENTAL HEALTH EDUCATION",
+          "CONTEXTUAL DENTAL HEALTH EDUCATION"
+        ],
+        [
+          "Date Tested",
+          "08/06/2026",
+          "Type of System",
+          "Mobile Application",
+          "Mobile Application",
+          "Mobile Application"
+        ],
+        [
+          "Pre-conditions",
+          "Login as Patient, tap Health on the bottom navigation bar and a Daily Oral Health Log must be available",
+          "Login as Patient, tap Health on the bottom navigation bar and a Daily Oral Health Log must be available",
+          "Login as Patient, tap Health on the bottom navigation bar and a Daily Oral Health Log must be available",
+          "Login as Patient, tap Health on the bottom navigation bar and a Daily Oral Health Log must be available",
+          "Login as Patient, tap Health on the bottom navigation bar and a Daily Oral Health Log must be available"
+        ],
+        [
+          "Action Description",
+          "Display Dental Health Education related to the recorded Oral Health Management information",
+          "Display Dental Health Education related to the recorded Oral Health Management information",
+          "Display Dental Health Education related to the recorded Oral Health Management information",
+          "Display Dental Health Education related to the recorded Oral Health Management information",
+          "Display Dental Health Education related to the recorded Oral Health Management information"
+        ],
+        [
+          "Verification Steps",
+          "Select a date with recorded information and verify the corresponding Dental Health Education topic/s",
+          "Select a date with recorded information and verify the corresponding Dental Health Education topic/s",
+          "Select a date with recorded information and verify the corresponding Dental Health Education topic/s",
+          "Select a date with recorded information and verify the corresponding Dental Health Education topic/s",
+          "Select a date with recorded information and verify the corresponding Dental Health Education topic/s"
+        ],
+        [
+          "Test Scenario",
+          "Data\n(Input Values)",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Daily Oral Health Log contains Sensitivity",
+          "“Understanding tooth sensitivity” must display",
+          "“Understanding tooth sensitivity” must display",
+          "",
+          "PASSED"
+        ],
+        [
+          "2",
+          "Daily Oral Health Log contains Bleeding Gums",
+          "Related Gum Care and Flossing Dental Health Education must display",
+          "Related Gum Care and Flossing Dental Health Education must display",
+          "",
+          "PASSED"
+        ],
+        [
+          "3",
+          "Daily Oral Health Log contains Missed Brushing",
+          "“Build a brushing routine you can repeat” must display",
+          "“Build a brushing routine you can repeat” must display",
+          "",
+          "PASSED"
+        ],
+        [
+          "4",
+          "Daily Oral Health Log contains Sugary Drinks",
+          "“Sugary drinks and everyday oral care” must display",
+          "“Sugary drinks and everyday oral care” must display",
+          "",
+          "PASSED"
+        ],
+        [
+          "5",
+          "Daily Oral Health Log contains Smoked or Vaped",
+          "“Smoking, vaping, and oral-health conversations” must display",
+          "“Smoking, vaping, and oral-health conversations” must display",
+          "",
+          "PASSED"
+        ],
+        [
+          "6",
+          "Selected date has no information matching a Dental Health Education topic",
+          "The message must display “No matching topic yet”",
+          "The message must display “No matching topic yet”",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 36,
+      "type": "table",
+      "rows": [
+        [
+          "UNIT TEST DOCUMENT",
+          "UNIT TEST DOCUMENT",
+          "Module Name",
+          "DENTAL HEALTH EDUCATION MODULE",
+          "DENTAL HEALTH EDUCATION MODULE",
+          "DENTAL HEALTH EDUCATION MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "Component Name",
+          "DENTAL HEALTH EDUCATION LIBRARY",
+          "DENTAL HEALTH EDUCATION LIBRARY",
+          "DENTAL HEALTH EDUCATION LIBRARY"
+        ],
+        [
+          "Date Tested",
+          "08/06/2026",
+          "Type of System",
+          "Mobile Application",
+          "Mobile Application",
+          "Mobile Application"
+        ],
+        [
+          "Pre-conditions",
+          "Login as a patient, tap Health on the bottom navigation bar, and open Dental Health Education",
+          "Login as a patient, tap Health on the bottom navigation bar, and open Dental Health Education",
+          "Login as a patient, tap Health on the bottom navigation bar, and open Dental Health Education",
+          "Login as a patient, tap Health on the bottom navigation bar, and open Dental Health Education",
+          "Login as a patient, tap Health on the bottom navigation bar, and open Dental Health Education"
+        ],
+        [
+          "Action Description",
+          "Search, filter, and view the Dental Health Education library",
+          "Search, filter, and view the Dental Health Education library",
+          "Search, filter, and view the Dental Health Education library",
+          "Search, filter, and view the Dental Health Education library",
+          "Search, filter, and view the Dental Health Education library"
+        ],
+        [
+          "Verification Steps",
+          "Select a category, enter a search keyword, and open an available article",
+          "Select a category, enter a search keyword, and open an available article",
+          "Select a category, enter a search keyword, and open an available article",
+          "Select a category, enter a search keyword, and open an available article",
+          "Select a category, enter a search keyword, and open an available article"
+        ],
+        [
+          "Test Scenario",
+          "Data\n(Input Values)",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Open Dental Health Education",
+          "The available Dental Health Education articles and categories must display",
+          "The available Dental Health Education articles and categories must display",
+          "",
+          "PASSED"
+        ],
+        [
+          "2",
+          "Select an available Dental Health Education category",
+          "Only the Dental Health Education articles matching the selected category must display",
+          "Only the Dental Health Education articles matching the selected category must display",
+          "",
+          "PASSED"
+        ],
+        [
+          "3",
+          "Enter a valid Dental Health Education search keyword",
+          "The matching Dental Health Education article/s must display",
+          "The matching Dental Health Education article/s must display",
+          "",
+          "PASSED"
+        ],
+        [
+          "4",
+          "Enter a search keyword with no matching article",
+          "no matching article\nThe message must display “No education topics found” and “Try another category or clear your search to browse the full Dental Health Education library”",
+          "no matching article\nThe message must display “No education topics found” and “Try another category or clear your search to browse the full Dental Health Education library”",
+          "",
+          "PASSED"
+        ],
+        [
+          "5",
+          "Select an existing Dental Health Education article",
+          "The selected article title, summary, content, and “What you can do” information must display",
+          "The selected article title, summary, content, and “What you can do” information must display",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 38,
+      "type": "table",
+      "rows": [
+        [
+          "UNIT TEST DOCUMENT",
+          "UNIT TEST DOCUMENT",
+          "Module Name",
+          "PATIENT NOTIFICATIONS MODULE",
+          "PATIENT NOTIFICATIONS MODULE",
+          "PATIENT NOTIFICATIONS MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "Component Name",
+          "NOTIFICATION INBOX",
+          "NOTIFICATION INBOX",
+          "NOTIFICATION INBOX"
+        ],
+        [
+          "Date Tested",
+          "08/06/2026",
+          "Type of System",
+          "Mobile Application",
+          "Mobile Application",
+          "Mobile Application"
+        ],
+        [
+          "Pre-conditions",
+          "Login as a patient, tap the notification bell on Home, and open Notifications",
+          "Login as a patient, tap the notification bell on Home, and open Notifications",
+          "Login as a patient, tap the notification bell on Home, and open Notifications",
+          "Login as a patient, tap the notification bell on Home, and open Notifications",
+          "Login as a patient, tap the notification bell on Home, and open Notifications"
+        ],
+        [
+          "Action Description",
+          "View and manage the patient’s notifications",
+          "View and manage the patient’s notifications",
+          "View and manage the patient’s notifications",
+          "View and manage the patient’s notifications",
+          "View and manage the patient’s notifications"
+        ],
+        [
+          "Verification Steps",
+          "Open Notifications, select unread notifications, and verify the notification status and unread count",
+          "Open Notifications, select unread notifications, and verify the notification status and unread count",
+          "Open Notifications, select unread notifications, and verify the notification status and unread count",
+          "Open Notifications, select unread notifications, and verify the notification status and unread count",
+          "Open Notifications, select unread notifications, and verify the notification status and unread count"
+        ],
+        [
+          "Test Scenario",
+          "Data\n(Input Values)",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Patient has read and unread notifications",
+          "The notification list, unread count, and total notification count must display correctly",
+          "The notification list, unread count, and total notification count must display correctly",
+          "",
+          "PASSED"
+        ],
+        [
+          "2",
+          "Select an unread notification",
+          "The selected notification must be marked as read",
+          "The selected notification must be marked as read",
+          "",
+          "PASSED"
+        ],
+        [
+          "3",
+          "Click Mark All as Read",
+          "All unread notifications must be marked as read and the inbox must display “All caught up”",
+          "All unread notifications must be marked as read and the inbox must display “All caught up”",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 40,
+      "type": "table",
+      "rows": [
+        [
+          "UNIT TEST DOCUMENT",
+          "UNIT TEST DOCUMENT",
+          "Module Name",
+          "PATIENT MEDICAL RECORDS MODULE",
+          "PATIENT MEDICAL RECORDS MODULE",
+          "PATIENT MEDICAL RECORDS MODULE"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "Component Name",
+          "VIEW EMR",
+          "VIEW EMR",
+          "VIEW EMR"
+        ],
+        [
+          "Date Tested",
+          "08/06/2026",
+          "Type of System",
+          "Mobile Application",
+          "Mobile Application",
+          "Mobile Application"
+        ],
+        [
+          "Pre-conditions",
+          "Login as a patient and tap Records on the bottom navigation bar",
+          "Login as a patient and tap Records on the bottom navigation bar",
+          "Login as a patient and tap Records on the bottom navigation bar",
+          "Login as a patient and tap Records on the bottom navigation bar",
+          "Login as a patient and tap Records on the bottom navigation bar"
+        ],
+        [
+          "Action Description",
+          "View the patient’s available EMR information",
+          "View the patient’s available EMR information",
+          "View the patient’s available EMR information",
+          "View the patient’s available EMR information",
+          "View the patient’s available EMR information"
+        ],
+        [
+          "Verification Steps",
+          "Navigate through Overview, Medical & Dental History, Treatment History, Odontogram, and X-Rays and verify the available records",
+          "Navigate through Overview, Medical & Dental History, Treatment History, Odontogram, and X-Rays and verify the available records",
+          "Navigate through Overview, Medical & Dental History, Treatment History, Odontogram, and X-Rays and verify the available records",
+          "Navigate through Overview, Medical & Dental History, Treatment History, Odontogram, and X-Rays and verify the available records",
+          "Navigate through Overview, Medical & Dental History, Treatment History, Odontogram, and X-Rays and verify the available records"
+        ],
+        [
+          "Test Scenario",
+          "Data\n(Input Values)",
+          "Expected Results",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "1",
+          "Patient has Medical & Dental History",
+          "The Medical & Dental History must display",
+          "The Medical & Dental History must display",
+          "",
+          "PASSED"
+        ],
+        [
+          "2",
+          "Patient has existing treatment records",
+          "The Recent Treatment History must display",
+          "The Recent Treatment History must display",
+          "",
+          "PASSED"
+        ],
+        [
+          "3",
+          "Patient has no treatment history",
+          "The message must display “No treatment history yet”",
+          "The message must display “No treatment history yet”",
+          "",
+          "PASSED"
+        ],
+        [
+          "4",
+          "Patient has an existing odontogram",
+          "The patient’s odontogram must display and the patient must not be able to edit it",
+          "The patient’s odontogram must display and the patient must not be able to edit it",
+          "",
+          "PASSED"
+        ],
+        [
+          "5",
+          "Patient has no odontogram record",
+          "The message must display “No odontogram updates have been recorded yet”",
+          "The message must display “No odontogram updates have been recorded yet”",
+          "",
+          "PASSED"
+        ],
+        [
+          "6",
+          "Patient has existing radiograph record/s",
+          "The available radiograph record/s must display",
+          "The available radiograph record/s must display",
+          "",
+          "PASSED"
+        ],
+        [
+          "7",
+          "Patient has no radiograph records",
+          "The message must display “No radiograph images on file”",
+          "The message must display “No radiograph images on file”",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 43,
+      "type": "paragraph",
+      "style": "Normal",
+      "text": "",
+      "has_image": true
+    }
+  ]
+}

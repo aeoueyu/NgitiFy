@@ -454,7 +454,7 @@ const buildInitialForm = ({ assignedBranch, currentUserId, role }) => ({
     assignedDentist: '',
 });
 
-export default function SchedulePage() {
+export default function SchedulePage({ scheduleScope = '', dentistExperience = false, title = 'Schedule Management' }) {
     const { user } = useAuth();
     const { addToast } = useToast();
     const navigate = useNavigate();
@@ -468,14 +468,15 @@ export default function SchedulePage() {
     const isOwner = role === 'owner';
     const isBranchManager = role === 'branch-manager';
     const isSecretary = role === 'secretary';
-    const isDentist = role === 'dentist';
+    const isDentist = role === 'dentist' || dentistExperience;
+    const effectiveScheduleRole = isDentist ? 'dentist' : role;
     const isQueueEnabled = systemConfig?.featureToggles?.queueManagement !== false;
 
     const canManageQueue = isQueueEnabled && (isAdmin || isBranchManager || isSecretary);
     const canViewQueue = isQueueEnabled && (canManageQueue || isDentist);
-    const canCreateSchedule = isAdmin || isOwner || isBranchManager || isSecretary;
-    const canEditSchedule = isAdmin || isOwner || isBranchManager || isSecretary;
-    const canChooseBranch = isAdmin || isOwner;
+    const canCreateSchedule = !isDentist && (isAdmin || isOwner || isBranchManager || isSecretary);
+    const canEditSchedule = !isDentist && (isAdmin || isOwner || isBranchManager || isSecretary);
+    const canChooseBranch = !isDentist && (isAdmin || isOwner);
     const canChooseDentist = !isDentist;
     const clinicProcedureOptions = useMemo(() => (
         (Array.isArray(systemConfig?.clinicProcedures) ? systemConfig.clinicProcedures : [])
@@ -521,7 +522,7 @@ export default function SchedulePage() {
     const [rowsPerPage, setRowsPerPage] = useState(getInitialScheduleRowsPerPage);
     const [page, setPage] = useState(1);
 
-    const [formState, setFormState] = useState(buildInitialForm({ assignedBranch, currentUserId, role }));
+    const [formState, setFormState] = useState(buildInitialForm({ assignedBranch, currentUserId, role: effectiveScheduleRole }));
     const [formErrors, setFormErrors] = useState({});
     const [formTouched, setFormTouched] = useState({});
     const [editingEntry, setEditingEntry] = useState(null);
@@ -579,7 +580,7 @@ export default function SchedulePage() {
         return `${statusFilter.length} Status${statusFilter.length === 1 ? '' : 'es'} Selected`;
     }, [statusFilter, workflowFilter]);
     const resetFormState = useCallback(() => {
-        setFormState(buildInitialForm({ assignedBranch, currentUserId, role }));
+        setFormState(buildInitialForm({ assignedBranch, currentUserId, role: effectiveScheduleRole }));
         setFormErrors({});
         setFormTouched({});
         setAllowedSlots([]);
@@ -587,7 +588,7 @@ export default function SchedulePage() {
         setSlotError('');
         setEditingEntry(null);
         setEditMode('full');
-    }, [assignedBranch, currentUserId, role]);
+    }, [assignedBranch, currentUserId, effectiveScheduleRole]);
 
     const toggleStatusFilter = useCallback((value) => {
         let nextStatuses = [];
@@ -618,11 +619,13 @@ export default function SchedulePage() {
             const appointmentParams = new URLSearchParams();
             if (selectedDateRange.from) appointmentParams.set('dateFrom', selectedDateRange.from);
             if (selectedDateRange.to) appointmentParams.set('dateTo', selectedDateRange.to);
+            if (scheduleScope) appointmentParams.set('scope', scheduleScope);
+            const patientScopeQuery = scheduleScope === 'my-schedule' ? '&scope=my-patients' : '';
             const requests = [
                 authFetch(appointmentParams.toString()
                     ? `/appointments?${appointmentParams.toString()}`
                     : '/appointments'),
-                authFetch('/patients?limit=200&view=directory'),
+                authFetch(`/patients?limit=200&view=directory${patientScopeQuery}`),
                 authFetch('/assignable-dentists'),
             ];
 
@@ -631,6 +634,7 @@ export default function SchedulePage() {
                 if (selectedDateRange.from) queueParams.set('dateFrom', selectedDateRange.from);
                 if (selectedDateRange.to) queueParams.set('dateTo', selectedDateRange.to);
                 queueParams.set('includeHistory', 'true');
+                if (scheduleScope) queueParams.set('scope', scheduleScope);
                 requests.push(authFetch(queueParams.toString() ? `/queue?${queueParams.toString()}` : '/queue'));
             }
 
@@ -714,7 +718,7 @@ export default function SchedulePage() {
                 setLoading(false);
             }
         }
-    }, [addToast, assignedBranch, canChooseBranch, canViewQueue, selectedDateRange.from, selectedDateRange.to]);
+    }, [addToast, assignedBranch, canChooseBranch, canViewQueue, scheduleScope, selectedDateRange.from, selectedDateRange.to]);
 
     useEffect(() => {
         fetchPageData();
@@ -2410,7 +2414,9 @@ export default function SchedulePage() {
                                         onClick={() => {
                                             const patientId = viewEntry.patientId;
                                             setViewEntry(null);
-                                            navigate(`/dentist/patients/${patientId}/emr`);
+                                            navigate(dentistExperience && role === 'owner'
+                                                ? `/owner/my-patients/${patientId}/emr`
+                                                : `/dentist/patients/${patientId}/emr`);
                                         }}
                                     >
                                         Open Full EMR Page
@@ -2441,7 +2447,7 @@ export default function SchedulePage() {
             <div className={styles.page}>
                 <div className={styles.headerRow}>
                     <div className={styles.headerContent}>
-                        <h1 className={styles.pageTitle}>Schedule Management</h1>
+                        <h1 className={styles.pageTitle}>{title}</h1>
                         <p className={styles.pageSubtitle}>
                             Appointments, phone calls, and walk-ins are shown in one schedule view, with branch-aware dentist filtering, multi-filter record exports, and a patient search flow that matches registration.
                         </p>

@@ -1,0 +1,1617 @@
+[
+  {
+    "module": "WEBSITE ONLINE BOOKING MODULE",
+    "function": "WEBSITE APPOINTMENT REQUEST",
+    "access": "Public User / Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: appointment page is open.",
+    "action": "The listed user performs the Website Appointment Request function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Complete required fields.",
+        "expected": "Must be able to display a success modal titled \"Request received\""
+      }
+    ],
+    "source_tag": "unit-web-1"
+  },
+  {
+    "module": "REGISTRATION MODULE",
+    "function": "PATIENT PRE-REGISTRATION",
+    "access": "Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: unregistered patient booked an appointment online.",
+    "action": "The listed user performs the Patient Pre-Registration function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Complete and valid required fields.",
+        "expected": "Must be able to display the message \"Thank you! Your registration details have been completed. Please check your email for the activation link sent by the clinic, then open it and set up your password.\""
+      }
+    ],
+    "source_tag": "unit-web-2"
+  },
+  {
+    "module": "REGISTRATION MODULE",
+    "function": "SET-UP PASSWORD",
+    "access": "Administrator, Owner, Branch Manager, Dentist, Secretary, and Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: staff/patient already registered.",
+    "action": "The listed user performs the Set-Up Password function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Password and confirm password matched.",
+        "expected": "Must be able to display the message \"Account activated successfully. Your password is now set.\""
+      }
+    ],
+    "source_tag": "unit-web-3"
+  },
+  {
+    "module": "LOGIN MODULE",
+    "function": "LOGIN",
+    "access": "Administrator, Owner, Branch Manager, Dentist, Secretary, and Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: browser opened; account exists.",
+    "action": "The listed user performs the Login function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Enter the correct email and password for the listed role.",
+        "expected": "Must successfully log in and display the role-appropriate dashboard."
+      }
+    ],
+    "source_tag": "unit-web-4"
+  },
+  {
+    "module": "LOGIN MODULE",
+    "function": "FORGOT PASSWORD",
+    "access": "Administrator, Owner, Branch Manager, Dentist, Secretary, and Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: click \"Forgot Password\" on the login page.",
+    "action": "The listed user performs the Forgot Password function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Enter email address.",
+        "expected": "Must be able to display verification code page."
+      }
+    ],
+    "source_tag": "unit-web-5"
+  },
+  {
+    "module": "LOGIN MODULE",
+    "function": "FORGOT PASSWORD - OTP",
+    "access": "Administrator, Owner, Branch Manager, Dentist, Secretary, and Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: enter email in the Forgot Password page.",
+    "action": "The listed user performs the Forgot Password - Otp function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Correct OTP.",
+        "expected": "Must be able to display reset password page."
+      }
+    ],
+    "source_tag": "unit-web-6"
+  },
+  {
+    "module": "LOGIN MODULE",
+    "function": "RESET PASSWORD",
+    "access": "Administrator, Owner, Branch Manager, Dentist, Secretary, and Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: enter the valid OTP in the OTP page.",
+    "action": "The listed user performs the Reset Password function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "New and confirm new password matched.",
+        "expected": "Must be able to display successful Password Change page."
+      }
+    ],
+    "source_tag": "unit-web-7"
+  },
+  {
+    "module": "ACCOUNT SETTINGS MODULE",
+    "function": "EDIT PROFILE",
+    "access": "Administrator, Owner, Branch Manager, Dentist, Secretary, and Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click the \"My Profile\" from the sidebar and click \"Edit Profile\"",
+    "action": "The listed user performs the Edit Profile function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Complete required fields.",
+        "expected": "Must be able to display the role-appropriate profile update confirmation and show the saved profile information."
+      }
+    ],
+    "source_tag": "unit-web-8"
+  },
+  {
+    "module": "ACCOUNT SETTINGS MODULE",
+    "function": "CHANGE EMAIL",
+    "access": "Administrator, Owner, Branch Manager, Dentist, Secretary, and Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click the \"My Profile\" from the sidebar and click \"Change Email\"",
+    "action": "The listed user performs the Change Email function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Valid Email Address format and correct password.",
+        "expected": "Must be able to display the \"Request Link Sent\" confirmation, state that a verification email was sent, and log the user out for reactivation."
+      }
+    ],
+    "source_tag": "unit-web-9"
+  },
+  {
+    "module": "ACCOUNT SETTINGS MODULE",
+    "function": "CHANGE PASSWORD",
+    "access": "Administrator, Owner, Branch Manager, Dentist, Secretary, and Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click the \"Settings\" from the sidebar and click \"Account Security\"",
+    "action": "The listed user performs the Change Password function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Correct Current Password, correct New Password format, and New and Confirm New Password Match.",
+        "expected": "Must be able to display the password-change success confirmation and log the user out for security."
+      }
+    ],
+    "source_tag": "unit-web-10"
+  },
+  {
+    "module": "ACCOUNT SETTINGS MODULE",
+    "function": "NOTIFICATIONS",
+    "access": "Administrator, Owner, Branch Manager, Dentist, Secretary, and Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login, click settings from the sidebar and open Notifications.",
+    "action": "The listed user performs the Notifications function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Enable or disable each available notification preference.",
+        "expected": "Must be able to display the message \"Settings saved successfully\""
+      }
+    ],
+    "source_tag": "unit-web-11"
+  },
+  {
+    "module": "DASHBOARD MODULE",
+    "function": "DASHBOARD",
+    "access": "Administrator, Owner, Branch Manager, Dentist, Secretary, and Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must be authenticated and authorized for the web application.",
+    "action": "The listed user performs the Dashboard function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "The listed user opens Dashboard.",
+        "expected": "Must be able to display the role-appropriate dashboard summary and navigation."
+      }
+    ],
+    "source_tag": "integration"
+  },
+  {
+    "module": "ACCOUNT SETTINGS MODULE",
+    "function": "VIEW PROFILE",
+    "access": "Administrator, Owner, Branch Manager, Dentist, Secretary, and Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must be authenticated and the My Profile page must be accessible.",
+    "action": "The listed user performs the View Profile function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "The user opens My Profile.",
+        "expected": "Must be able to display the authenticated user's available profile information and role details."
+      }
+    ],
+    "source_tag": "integration"
+  },
+  {
+    "module": "NOTIFICATIONS MODULE",
+    "function": "STAFF NOTIFICATION INBOX",
+    "access": "Administrator, Owner, Branch Manager, Dentist, and Secretary",
+    "system": "Web Application",
+    "preconditions": "The listed staff user must be authenticated and the Notifications page must be accessible.",
+    "action": "The listed user performs the Staff Notification Inbox function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "The staff user has notifications.",
+        "expected": "Must be able to display the staff notification list and unread indicators."
+      }
+    ],
+    "source_tag": "integration"
+  },
+  {
+    "module": "LOGIN MODULE",
+    "function": "LOGOUT",
+    "access": "Administrator, Owner, Branch Manager, Dentist, Secretary, and Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must be authenticated.",
+    "action": "The listed user performs the Logout function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "The user confirms Logout.",
+        "expected": "Must end the authenticated session and display the Login page successfully."
+      }
+    ],
+    "source_tag": "integration"
+  },
+  {
+    "module": "USER ACCOUNTS MANAGEMENT MODULE",
+    "function": "SEARCH/FILTER STAFF",
+    "access": "Administrator, Owner, and Branch Manager",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Manage Staffs from the sidebar.",
+    "action": "The listed user performs the Search/Filter Staff function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Valid search by name or email.",
+        "expected": "Must update the table to show only the staff(s) whose name/email matches the search input successfully."
+      }
+    ],
+    "source_tag": "unit-web-12"
+  },
+  {
+    "module": "USER ACCOUNTS MANAGEMENT MODULE",
+    "function": "ADD NEW STAFF",
+    "access": "Administrator, Owner, and Branch Manager",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Manage Staffs from the sidebar then click the Add New *Selected Staff Role Tab* button.",
+    "action": "The listed user performs the Add New Staff function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Complete and valid required fields.",
+        "expected": "Must be able to display the selected role-specific success confirmation and state that the activation email was sent."
+      }
+    ],
+    "source_tag": "unit-web-13"
+  },
+  {
+    "module": "USER ACCOUNTS MANAGEMENT MODULE",
+    "function": "EDIT STAFF INFO",
+    "access": "Administrator, Owner, and Branch Manager",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Manage Staffs from the sidebar then select a staff from the list and click the edit button.",
+    "action": "The listed user performs the Edit Staff Info function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Complete and valid required fields.",
+        "expected": "Must be able to display the selected role-specific profile update success confirmation."
+      }
+    ],
+    "source_tag": "unit-web-14"
+  },
+  {
+    "module": "USER ACCOUNTS MANAGEMENT MODULE",
+    "function": "STAFF ACCOUNT LIFECYCLE",
+    "access": "Administrator, Owner, and Branch Manager",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Manage Staffs from the sidebar then select a staff from the list.",
+    "action": "The listed user performs the Staff Account Lifecycle function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Activate or deactivate selected account.",
+        "expected": "Must update staff's account status successfully after confirmation."
+      }
+    ],
+    "source_tag": "unit-web-15"
+  },
+  {
+    "module": "USER ACCOUNTS MANAGEMENT MODULE",
+    "function": "SEARCH/FILTER PATIENT",
+    "access": "Administrator, Owner, Branch Manager, Dentist, and Secretary",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Manage Patients from the sidebar.",
+    "action": "The listed user performs the Search/Filter Patient function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Valid search by name or email.",
+        "expected": "Must update the table to show only the patient(s) whose name/email matches the search input successfully."
+      }
+    ],
+    "source_tag": "unit-web-16"
+  },
+  {
+    "module": "USER ACCOUNTS MANAGEMENT MODULE",
+    "function": "ADD NEW PATIENT",
+    "access": "Administrator and Secretary",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Manage Patients from the sidebar then click the Add New Patient button.",
+    "action": "The listed user performs the Add New Patient function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Complete and valid required fields.",
+        "expected": "Must be able to display the message \"New patient has been successfully added to the system\""
+      }
+    ],
+    "source_tag": "unit-web-17"
+  },
+  {
+    "module": "USER ACCOUNTS MANAGEMENT MODULE",
+    "function": "EDIT PATIENT",
+    "access": "Administrator and Secretary",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Manage Patients from the sidebar then select a patient from the list and click the edit button.",
+    "action": "The listed user performs the Edit Patient function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Complete and valid required fields.",
+        "expected": "Must be able to display the message \"Success! The patient's profile has been successfully updated.\""
+      }
+    ],
+    "source_tag": "unit-web-18"
+  },
+  {
+    "module": "USER ACCOUNTS MANAGEMENT MODULE",
+    "function": "PATIENT ACCOUNT LIFECYCLE",
+    "access": "Administrator, Owner, and Branch Manager",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Manage Patients from the sidebar then select a patient from the list.",
+    "action": "The listed user performs the Patient Account Lifecycle function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Activate or deactivate selected account.",
+        "expected": "Must update patient's account status successfully after confirmation."
+      }
+    ],
+    "source_tag": "unit-web-19"
+  },
+  {
+    "module": "USER ACCOUNTS MANAGEMENT MODULE",
+    "function": "PATIENT BRANCH TRANSFER",
+    "access": "Administrator, Owner, and Branch Manager",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Manage Patients from the sidebar then select a patient from the list.",
+    "action": "The listed user performs the Patient Branch Transfer function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Valid target branch and valid transfer reason.",
+        "expected": "Must update the patient's branch assignment to the selected target branch successfully."
+      }
+    ],
+    "source_tag": "unit-web-20"
+  },
+  {
+    "module": "BRANCH MANAGEMENT MODULE",
+    "function": "ADD BRANCH",
+    "access": "Administrator and Owner",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Branches from the sidebar then click Add Branch button.",
+    "action": "The listed user performs the Add Branch function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Complete and valid required fields.",
+        "expected": "Must be able to display the message \"Success! Branch created successfully.\""
+      }
+    ],
+    "source_tag": "unit-web-21"
+  },
+  {
+    "module": "BRANCH MANAGEMENT MODULE",
+    "function": "EDIT BRANCH",
+    "access": "Administrator and Owner",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Branches from the sidebar then select a branch and click the edit button.",
+    "action": "The listed user performs the Edit Branch function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Complete and valid required fields.",
+        "expected": "Must be able to display the message \"Success! Branch updated successfully.\""
+      }
+    ],
+    "source_tag": "unit-web-22"
+  },
+  {
+    "module": "BRANCH MANAGEMENT MODULE",
+    "function": "BRANCH STATUS",
+    "access": "Administrator and Owner",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Branches from the sidebar then select a branch.",
+    "action": "The listed user performs the Branch Status function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Deactivate an active branch.",
+        "expected": "Must deactivate the selected branch successfully and display its updated status."
+      }
+    ],
+    "source_tag": "unit-web-23"
+  },
+  {
+    "module": "BRANCH MANAGEMENT MODULE",
+    "function": "BRANCH ANALYTICS",
+    "access": "Administrator, Owner, and Branch Manager",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Branches from the sidebar then select a branch and click view button.",
+    "action": "The listed user performs the Branch Analytics function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Selected branch has analytics data.",
+        "expected": "Must be able to display branch analytics."
+      }
+    ],
+    "source_tag": "unit-web-24"
+  },
+  {
+    "module": "SCHEDULE MANAGEMENT MODULE",
+    "function": "SEARCH/FILTER SCHEDULE",
+    "access": "Administrator, Owner, Branch Manager, Dentist, and Secretary",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Schedule from the sidebar.",
+    "action": "The listed user performs the Search/Filter Schedule function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Valid search by name or email.",
+        "expected": "Must update the table to show only the schedule(s) that matches the patient, dentist, branch, and procedure search input successfully."
+      }
+    ],
+    "source_tag": "unit-web-25"
+  },
+  {
+    "module": "SCHEDULE MANAGEMENT MODULE",
+    "function": "ADD SCHEDULE",
+    "access": "Administrator, Owner, Branch Manager, Dentist, and Secretary",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Schedule from the sidebar then click Add Schedule Entry button.",
+    "action": "The listed user performs the Add Schedule function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Complete and valid required fields.",
+        "expected": "Must be able to display the message \"Success! Appointment created successfully\""
+      }
+    ],
+    "source_tag": "unit-web-26"
+  },
+  {
+    "module": "SCHEDULE MANAGEMENT MODULE",
+    "function": "EDIT SCHEDULE/RESCHEDULE",
+    "access": "Administrator, Owner, Branch Manager, Dentist, and Secretary",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Schedule from the sidebar then select a schedule entry and click the edit button.",
+    "action": "The listed user performs the Edit Schedule/Reschedule function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Complete and valid required fields.",
+        "expected": "Must be able to display the message \"Success! Appointment updated successfully.\""
+      }
+    ],
+    "source_tag": "unit-web-27"
+  },
+  {
+    "module": "SCHEDULE MANAGEMENT MODULE",
+    "function": "SCHEDULE STATUS MANAGEMENT",
+    "access": "Administrator, Owner, Branch Manager, Dentist, and Secretary",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Schedule from the sidebar then select a schedule from the list.",
+    "action": "The listed user performs the Schedule Status Management function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Update schedule status to Confirmed.",
+        "expected": "Must be able to display schedule status Confirmed."
+      }
+    ],
+    "source_tag": "unit-web-28"
+  },
+  {
+    "module": "PATIENT EMR MODULE",
+    "function": "MEDICAL AND DENTAL HISTORY",
+    "access": "Administrator, Owner, and Dentist",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Manage Patients from the side bar then select patient from the list, click View button, and navigate to Medical & Dental History.",
+    "action": "The listed user performs the Medical And Dental History function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Complete and valid required fields.",
+        "expected": "Must save medical and dental history successfully."
+      }
+    ],
+    "source_tag": "unit-web-29"
+  },
+  {
+    "module": "PATIENT EMR MODULE",
+    "function": "TREATMENT LOGS",
+    "access": "Owner and Dentist",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Manage Patients from the side bar then select patient from the list, click View button, and navigate to treatment logs.",
+    "action": "The listed user performs the Treatment Logs function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Complete and valid required fields.",
+        "expected": "Must add the treatment log successfully and display it in the patient's EMR."
+      }
+    ],
+    "source_tag": "unit-web-30"
+  },
+  {
+    "module": "PATIENT EMR MODULE",
+    "function": "INTERACTIVE DIGITAL ODONTOGRAM",
+    "access": "Owner and Dentist",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in as Dentist, click Manage Patients from the side bar then select patient from the list, click View button, and navigate to digital odontogram.",
+    "action": "The listed user performs the Interactive Digital Odontogram function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Save a valid supported tooth condition, surface, or stage.",
+        "expected": "Must be able to display the patient's current tooth data in the digital odontogram."
+      }
+    ],
+    "source_tag": "unit-web-31"
+  },
+  {
+    "module": "PATIENT EMR MODULE",
+    "function": "AI-ASSISTED RADIOGRAPH REVIEW",
+    "access": "Owner and Dentist",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login as Dentist, click Manage Patients from the sidebar then select patient from the list, click View button, and navigate to Radiograph Images.",
+    "action": "The listed user performs the Ai-Assisted Radiograph Review function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Upload radiograph image under 3MB image-size limit with complete required fields.",
+        "expected": "Must upload the radiograph successfully and display it in the patient record."
+      }
+    ],
+    "source_tag": "unit-web-32"
+  },
+  {
+    "module": "PATIENT EMR MODULE",
+    "function": "PATIENT RADIOGRAPH EXPLANATION",
+    "access": "Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login as Patient and click Medical Records from the sidebar.",
+    "action": "The listed user performs the Patient Radiograph Explanation function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Patient has approved radiograph image with dentist findings.",
+        "expected": "Must be able to display radiograph image and dentist-approved findings."
+      }
+    ],
+    "source_tag": "unit-web-33"
+  },
+  {
+    "module": "INVENTORY MANAGEMENT MODULE",
+    "function": "SEARCH/FILTER INVENTORY",
+    "access": "Administrator, Owner, Branch Manager, and Dentist (read-only)",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Inventory from the sidebar.",
+    "action": "The listed user performs the Search/Filter Inventory function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Valid search or filter by item, category, brand, batch, or branch.",
+        "expected": "Must be able to display only the inventory records matching the selected search/filter criteria."
+      }
+    ],
+    "source_tag": "unit-web-34"
+  },
+  {
+    "module": "INVENTORY MANAGEMENT MODULE",
+    "function": "ADD NEW INVENTORY ITEM",
+    "access": "Administrator, Owner, and Branch Manager",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Inventory from the sidebar and click Add New Item button.",
+    "action": "The listed user performs the Add New Inventory Item function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Complete and valid required fields.",
+        "expected": "Must add the new inventory item successfully and display it in the inventory tracker."
+      }
+    ],
+    "source_tag": "unit-web-35"
+  },
+  {
+    "module": "INVENTORY MANAGEMENT MODULE",
+    "function": "ADD INVENTORY STOCK",
+    "access": "Administrator, Owner, and Branch Manager",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Inventory from the sidebar and choose Add Stock/Receive Stock.",
+    "action": "The listed user performs the Add Inventory Stock function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Complete and valid required fields.",
+        "expected": "Must add the stock batch successfully and display the updated available quantity."
+      }
+    ],
+    "source_tag": "unit-web-36"
+  },
+  {
+    "module": "INVENTORY MANAGEMENT MODULE",
+    "function": "EDIT INVENTORY ITEM",
+    "access": "Administrator, Owner, and Branch Manager",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Inventory from the sidebar and click the edit button.",
+    "action": "The listed user performs the Edit Inventory Item function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Complete and valid required fields.",
+        "expected": "Must update inventory item successfully."
+      }
+    ],
+    "source_tag": "unit-web-37"
+  },
+  {
+    "module": "INVENTORY MANAGEMENT MODULE",
+    "function": "DELETE STOCK BATCH",
+    "access": "Administrator, Owner, and Branch Manager",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Inventory from the sidebar, select a stock and click the delete button.",
+    "action": "The listed user performs the Delete Stock Batch function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Selected a batch and deletion is confirmed.",
+        "expected": "Must be able to display the message \"Stock batch deleted successfully\" and remove the selected batch."
+      }
+    ],
+    "source_tag": "unit-web-38"
+  },
+  {
+    "module": "INVENTORY MANAGEMENT MODULE",
+    "function": "MATERIAL USAGE LOG",
+    "access": "Owner and Dentist",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Material Usage Log from the side bar then click Log New Entry button.",
+    "action": "The listed user performs the Material Usage Log function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Complete and valid required fields.",
+        "expected": "Must save the material usage log successfully and update the corresponding inventory quantities."
+      }
+    ],
+    "source_tag": "unit-web-39"
+  },
+  {
+    "module": "SYSTEM CONFIGURATION MODULE",
+    "function": "UPDATE SYSTEM CONFIGURATION",
+    "access": "Administrator",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click System Configuration from the side bar.",
+    "action": "The listed user performs the Update System Configuration function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Complete and valid required fields.",
+        "expected": "Must save system configuration successfully."
+      }
+    ],
+    "source_tag": "unit-web-40"
+  },
+  {
+    "module": "SYSTEM CONFIGURATION MODULE",
+    "function": "WEBSITE CONTENT AND MEDIA",
+    "access": "Administrator",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login, click System Configuration from the sidebar then navigate to Website Content.",
+    "action": "The listed user performs the Website Content And Media function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Complete and valid website content.",
+        "expected": "Must be able to display the message \"System configuration saved successfully\""
+      }
+    ],
+    "source_tag": "unit-web-41"
+  },
+  {
+    "module": "ARCHIVE REVIEW MODULE",
+    "function": "SEARCH/FILTER ARCHIVE RECORDS",
+    "access": "Administrator",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Archive Review from the sidebar.",
+    "action": "The listed user performs the Search/Filter Archive Records function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Valid search or filter by name, email, role, archive reason, or review state.",
+        "expected": "Must be able to display only the archived records matching the selected search/filter criteria."
+      }
+    ],
+    "source_tag": "unit-web-42"
+  },
+  {
+    "module": "ARCHIVE REVIEW MODULE",
+    "function": "RESTORE/PERMANENT DELETE REVIEW",
+    "access": "Administrator",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Archive Review from the sidebar and archived records must exist.",
+    "action": "The listed user performs the Restore/Permanent Delete Review function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Restore and confirm an archived record.",
+        "expected": "Must restore record successfully."
+      }
+    ],
+    "source_tag": "unit-web-43"
+  },
+  {
+    "module": "DATABASE BACKUP MODULE",
+    "function": "BACKUP STATUS AND HISTORY",
+    "access": "Administrator",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login, click Database Backup from the sidebar.",
+    "action": "The listed user performs the Backup Status And History function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Existing backup records.",
+        "expected": "Must be able to display existing backup records with their status, file availability, and verification result."
+      }
+    ],
+    "source_tag": "unit-web-44"
+  },
+  {
+    "module": "DATABASE BACKUP MODULE",
+    "function": "CREATE DATABASE BACKUP",
+    "access": "Administrator",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Database Backup from the sidebar and click Create Backup Now button.",
+    "action": "The listed user performs the Create Database Backup function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Backup tools available and no backup currently running.",
+        "expected": "Must create the database backup successfully and display it in the backup history."
+      }
+    ],
+    "source_tag": "unit-web-45"
+  },
+  {
+    "module": "DATABASE BACKUP MODULE",
+    "function": "AUTOMATIC BACKUP SETTINGS",
+    "access": "Administrator",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login, click Database Backup from the sidebar and navigate to Automatic Backup Settings.",
+    "action": "The listed user performs the Automatic Backup Settings function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Enable automatic backups, Backup frequency = 24 hours, Number of completed backups to keep = 14.",
+        "expected": "Must be able to display the message \"Backup settings saved successfully\""
+      }
+    ],
+    "source_tag": "unit-web-46"
+  },
+  {
+    "module": "DATABASE BACKUP MODULE",
+    "function": "DOWNLOAD AND VERIFY BACKUP",
+    "access": "Administrator",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login, click Database Backup from the sidebar and a completed backup record must exist.",
+    "action": "The listed user performs the Download And Verify Backup function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Select a completed backup with available file and click Download.",
+        "expected": "Must download selected backup file successfully."
+      }
+    ],
+    "source_tag": "unit-web-47"
+  },
+  {
+    "module": "INTEGRITY TOOLS MODULE",
+    "function": "RUN INTEGRITY CHECKS",
+    "access": "Administrator",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login, click Integrity Tools from the sidebar.",
+    "action": "The listed user performs the Run Integrity Checks function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Run integrity checks with no detected issues.",
+        "expected": "Must be able to display corresponding integrity checks \"Pass\" and \"No issues\""
+      }
+    ],
+    "source_tag": "unit-web-48"
+  },
+  {
+    "module": "INTEGRITY TOOLS MODULE",
+    "function": "SAFE AUTO-FIX",
+    "access": "Administrator",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login, click Integrity Tools from the sidebar and an integrity issue eligible for Safe Auto-Fix must exist.",
+    "action": "The listed user performs the Safe Auto-Fix function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Select an issue marked Safe Auto-Fix and confirm.",
+        "expected": "Must update the eligible records successfully and rerun the affected integrity check."
+      }
+    ],
+    "source_tag": "unit-web-49"
+  },
+  {
+    "module": "ACTIVITY LOGS MODULE",
+    "function": "SEARCH/FILTER ACTIVITY LOGS",
+    "access": "Administrator, Owner, Branch Manager, Dentist, Secretary, and Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click Activity Logs from the sidebar.",
+    "action": "The listed user performs the Search/Filter Activity Logs function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Valid search by action, detail, or category.",
+        "expected": "Must update the table to show only the activity logs if action, detail, or category matches the search input successfully."
+      }
+    ],
+    "source_tag": "unit-web-50"
+  },
+  {
+    "module": "ACTIVITY LOGS MODULE",
+    "function": "VIEW ACTIVITY DETAILS",
+    "access": "Administrator, Owner, Branch Manager, Dentist, Secretary, and Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login, click Activity Logs from the sidebar and activity log records must exist.",
+    "action": "The listed user performs the View Activity Details function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Select an existing activity log and click View Details.",
+        "expected": "Must be able to display \"Activity Log Details\" modal the Date, Time, Action, Category, and Recorded Details."
+      }
+    ],
+    "source_tag": "unit-web-51"
+  },
+  {
+    "module": "SYSTEM AUDIT LOGS MODULE",
+    "function": "SEARCH/FILTER SYSTEM AUDIT LOGS",
+    "access": "Administrator",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login in, click System Audit Logs from the sidebar.",
+    "action": "The listed user performs the Search/Filter System Audit Logs function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Valid search by action, detail, or category.",
+        "expected": "Must update the table to show only the system audit logs if action, user, role, detail, or category matches the search input successfully."
+      }
+    ],
+    "source_tag": "unit-web-52"
+  },
+  {
+    "module": "SYSTEM AUDIT LOGS MODULE",
+    "function": "VIEW AUDIT DETAILS",
+    "access": "Administrator",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login, click System Audit Logs from the sidebar and system audit log records must exist.",
+    "action": "The listed user performs the View Audit Details function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Select an existing system audit log and click View Details.",
+        "expected": "Must be able to display \"Audit Log Details\" modal the Date, Time, User, Action, and Recorded Details."
+      }
+    ],
+    "source_tag": "unit-web-53"
+  },
+  {
+    "module": "AI PATIENT ENGAGEMENT MODULE",
+    "function": "NGITIBOT CHAT",
+    "access": "Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login as Patient and open NgitiBot.",
+    "action": "The listed user performs the Ngitibot Chat function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Enter a supported Dental Health Education question and click Send.",
+        "expected": "Must be able to display patient message and NgitiBot educational explanation in the conversation."
+      }
+    ],
+    "source_tag": "unit-web-54"
+  },
+  {
+    "module": "AI PATIENT CARE COMPANION MODULE",
+    "function": "NGITIBOT CARE CONTEXT",
+    "access": "Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login as Patient, open the AI Care Companion and patient care information must be available.",
+    "action": "The listed user performs the Ngitibot Care Context function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Existing System Recommendation.",
+        "expected": "Must be able to display recommended Visit Window, recommendation reason, and System Recommendation."
+      }
+    ],
+    "source_tag": "unit-web-55"
+  },
+  {
+    "module": "PATIENT APPOINTMENTS MODULE",
+    "function": "MY APPOINTMENTS",
+    "access": "Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login as Patient and click My Appointments from the sidebar.",
+    "action": "The listed user performs the My Appointments function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Patient has upcoming appointment.",
+        "expected": "Must be able to display upcoming appointment."
+      }
+    ],
+    "source_tag": "unit-web-56"
+  },
+  {
+    "module": "PATIENT APPOINTMENTS MODULE",
+    "function": "BOOK APPOINTMENT",
+    "access": "Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login as Patient, click My Appointments from the sidebar then click Book Appointment.",
+    "action": "The listed user performs the Book Appointment function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Complete and valid required fields, the patient has no ongoing appointment, and selected date and time are available.",
+        "expected": "Must successfully complete the Book Appointment flow so that appointment is submitted successfully and appear in My Appointments."
+      }
+    ],
+    "source_tag": "unit-web-57"
+  },
+  {
+    "module": "PATIENT APPOINTMENTS MODULE",
+    "function": "MANAGE APPOINTMENT",
+    "access": "Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login as Patient, click My Appointments from the sidebar then select an upcoming appointment.",
+    "action": "The listed user performs the Manage Appointment function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Cancel an eligible Pending or Confirmed appointment with valid cancellation reason.",
+        "expected": "Must be able to display appointment status Cancelled."
+      }
+    ],
+    "source_tag": "unit-web-58"
+  },
+  {
+    "module": "ORAL HEALTH MANAGEMENT MODULE",
+    "function": "DAILY ORAL HEALTH LOG",
+    "access": "Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login as Patient, click Oral Health Management from the sidebar and select today or a previous date.",
+    "action": "The listed user performs the Daily Oral Health Log function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Select any valid symptom, oral care habit, or other factor and click Save Entry.",
+        "expected": "Must be able to display the message \"Daily oral health log saved\""
+      }
+    ],
+    "source_tag": "unit-web-59"
+  },
+  {
+    "module": "ORAL HEALTH MANAGEMENT MODULE",
+    "function": "ORAL HEALTH CALENDAR & HISTORY",
+    "access": "Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login as Patient, click Oral Health Management from the sidebar and open Calendar.",
+    "action": "The listed user performs the Oral Health Calendar & History function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Select a date with an existing Daily Oral Health Log.",
+        "expected": "Must be able to display the selected Daily Oral Health Log and label the selected date \"Patient Log\""
+      }
+    ],
+    "source_tag": "unit-web-60"
+  },
+  {
+    "module": "ORAL HEALTH MANAGEMENT MODULE",
+    "function": "ORAL HEALTH TRENDS",
+    "access": "Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login as Patient, click Oral Health Management from the sidebar and open Trends.",
+    "action": "The listed user performs the Oral Health Trends function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "At least three Daily Oral Health Logs within the last 30 days.",
+        "expected": "Must be able to display 7-day and 30-day Oral Health Management trend counts."
+      }
+    ],
+    "source_tag": "unit-web-61"
+  },
+  {
+    "module": "ORAL HEALTH MANAGEMENT MODULE",
+    "function": "RECOMMENDED VISIT WINDOW",
+    "access": "Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login as Patient, click Oral Health Management from the sidebar and Recommended Visit Window information must be available.",
+    "action": "The listed user performs the Recommended Visit Window function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Dentist Suggested Next Visit exists and no earlier-contact rule applies.",
+        "expected": "Must be able to display the dentist-recommended visit window as the primary planned-care recommendation."
+      }
+    ],
+    "source_tag": "unit-web-62"
+  },
+  {
+    "module": "DENTAL HEALTH EDUCATION MODULE",
+    "function": "CONTEXTUAL DENTAL HEALTH EDUCATION",
+    "access": "Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login as Patient, click Oral Health Management from the sidebar and a Daily Oral Health Log must be available.",
+    "action": "The listed user performs the Contextual Dental Health Education function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Daily Oral Health Log contains Sensitivity.",
+        "expected": "Must be able to display \"Understanding tooth sensitivity\""
+      }
+    ],
+    "source_tag": "unit-web-63"
+  },
+  {
+    "module": "DENTAL HEALTH EDUCATION MODULE",
+    "function": "DENTAL HEALTH EDUCATION LIBRARY",
+    "access": "Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login as Patient, click Oral Health Management from the sidebar then open Dental Health Education.",
+    "action": "The listed user performs the Dental Health Education Library function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Open Dental Health Education.",
+        "expected": "Must be able to display available Dental Health Education articles and categories."
+      }
+    ],
+    "source_tag": "unit-web-64"
+  },
+  {
+    "module": "PATIENT NOTIFICATIONS MODULE",
+    "function": "NOTIFICATION INBOX",
+    "access": "Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login as Patient and click Notifications from the sidebar.",
+    "action": "The listed user performs the Notification Inbox function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Patient has read and unread notifications.",
+        "expected": "Must be able to display notification list, unread count, and total notification count correctly."
+      }
+    ],
+    "source_tag": "unit-web-65"
+  },
+  {
+    "module": "MY EMR MODULE",
+    "function": "VIEW EMR",
+    "access": "Patient",
+    "system": "Web Application",
+    "preconditions": "The listed user must satisfy this condition: login as Patient and click Medical Records from the sidebar.",
+    "action": "The listed user performs the View Emr function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Patient has an Overview.",
+        "expected": "Must be able to display overview."
+      }
+    ],
+    "source_tag": "unit-web-66"
+  },
+  {
+    "module": "LOGIN MODULE",
+    "function": "LOGIN",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The listed user must satisfy this condition: launch the NgitiFy mobile app; an active patient account exists.",
+    "action": "The listed user performs the Login function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Enter the correct patient email and password.",
+        "expected": "Must successfully log in and display the Patient dashboard."
+      }
+    ],
+    "source_tag": "unit-mobile-1"
+  },
+  {
+    "module": "LOGIN MODULE",
+    "function": "FORGOT PASSWORD",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The listed user must satisfy this condition: launch the NgitiFy mobile app, open the Login screen, and tap the Forgot Password link.",
+    "action": "The listed user performs the Forgot Password function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Enter email address.",
+        "expected": "Must be able to display verification code page."
+      }
+    ],
+    "source_tag": "unit-mobile-2"
+  },
+  {
+    "module": "LOGIN MODULE",
+    "function": "FORGOT PASSWORD - OTP",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The listed user must satisfy this condition: on the Forgot Password screen, enter the registered patient email address and request a verification code.",
+    "action": "The listed user performs the Forgot Password - Otp function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Correct OTP.",
+        "expected": "Must be able to display reset password page."
+      }
+    ],
+    "source_tag": "unit-mobile-3"
+  },
+  {
+    "module": "LOGIN MODULE",
+    "function": "RESET PASSWORD",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The listed user must satisfy this condition: on the OTP verification step, enter a valid OTP to continue to the new-password form.",
+    "action": "The listed user performs the Reset Password function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "New and confirm new password matched.",
+        "expected": "Must be able to display successful Password Change page."
+      }
+    ],
+    "source_tag": "unit-mobile-4"
+  },
+  {
+    "module": "ACCOUNT SETTINGS MODULE",
+    "function": "EDIT PROFILE",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The listed user must satisfy this condition: login as a patient, tap Profile on the bottom navigation bar, and select Edit profile.",
+    "action": "The listed user performs the Edit Profile function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Complete required fields.",
+        "expected": "Must be able to display the \"Profile Updated\" modal with the message \"Your profile information has been successfully saved.\""
+      }
+    ],
+    "source_tag": "unit-mobile-5"
+  },
+  {
+    "module": "ACCOUNT SETTINGS MODULE",
+    "function": "CHANGE EMAIL",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The listed user must satisfy this condition: login as a patient, tap Profile on the bottom navigation bar, and select Change Email.",
+    "action": "The listed user performs the Change Email function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Valid Email Address format and correct password.",
+        "expected": "Must be able to display the \"Request Link Sent\" confirmation, state that a verification email was sent, and log the user out for reactivation."
+      }
+    ],
+    "source_tag": "unit-mobile-6"
+  },
+  {
+    "module": "ACCOUNT SETTINGS MODULE",
+    "function": "CHANGE PASSWORD",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The listed user must satisfy this condition: login as a patient, tap Profile on the bottom navigation bar, open Settings, and select Change Password.",
+    "action": "The listed user performs the Change Password function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Correct Current Password, correct New Password format, and New and Confirm New Password Match.",
+        "expected": "Must be able to display the password-change success confirmation and log the user out for security."
+      }
+    ],
+    "source_tag": "unit-mobile-7"
+  },
+  {
+    "module": "ACCOUNT SETTINGS MODULE",
+    "function": "NOTIFICATIONS",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The listed user must satisfy this condition: login as a patient, tap Profile on the bottom navigation bar, open Settings, and scroll to the Notifications section.",
+    "action": "The listed user performs the Notifications function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Enable or disable each available notification preference.",
+        "expected": "Must save settings successfully."
+      }
+    ],
+    "source_tag": "unit-mobile-8"
+  },
+  {
+    "module": "DASHBOARD MODULE",
+    "function": "PATIENT DASHBOARD",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The patient must be authenticated in the mobile application.",
+    "action": "The listed user performs the Patient Dashboard function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "The patient opens Home.",
+        "expected": "Must be able to display the Patient dashboard with the next appointment, recommended visit information, and navigation shortcuts."
+      }
+    ],
+    "source_tag": "integration"
+  },
+  {
+    "module": "ACCOUNT SETTINGS MODULE",
+    "function": "VIEW PROFILE",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The patient must be authenticated and the Profile tab must be accessible.",
+    "action": "The listed user performs the View Profile function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "The patient opens Profile.",
+        "expected": "Must be able to display the patient's available profile information and account actions."
+      }
+    ],
+    "source_tag": "integration"
+  },
+  {
+    "module": "ACTIVITY LOGS MODULE",
+    "function": "VIEW ACTIVITY LOGS",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The patient must be authenticated and Activity Logs must be accessible from Profile.",
+    "action": "The listed user performs the View Activity Logs function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "The patient has recorded account activity.",
+        "expected": "Must be able to display the patient's activity log entries."
+      }
+    ],
+    "source_tag": "integration"
+  },
+  {
+    "module": "LOGIN MODULE",
+    "function": "LOGOUT",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The patient must be authenticated.",
+    "action": "The listed user performs the Logout function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "The patient confirms Logout.",
+        "expected": "Must end the authenticated session and display the mobile Login screen successfully."
+      }
+    ],
+    "source_tag": "integration"
+  },
+  {
+    "module": "AI PATIENT ENGAGEMENT MODULE",
+    "function": "NGITIBOT CHAT",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The listed user must satisfy this condition: login as a patient and tap the floating NgitiBot button.",
+    "action": "The listed user performs the Ngitibot Chat function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Enter a supported Dental Health Education question and click Send.",
+        "expected": "Must be able to display patient message and NgitiBot educational explanation in the conversation."
+      }
+    ],
+    "source_tag": "unit-mobile-9"
+  },
+  {
+    "module": "AI PATIENT CARE COMPANION MODULE",
+    "function": "NGITIBOT CARE CONTEXT",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The listed user must satisfy this condition: login as a patient, tap the floating NgitiBot button, and ensure patient care information is available.",
+    "action": "The listed user performs the Ngitibot Care Context function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Existing System Recommendation.",
+        "expected": "Must be able to display recommended Visit Window, recommendation reason, and System Recommendation."
+      }
+    ],
+    "source_tag": "unit-mobile-10"
+  },
+  {
+    "module": "PATIENT APPOINTMENTS MODULE",
+    "function": "MY APPOINTMENTS",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The listed user must satisfy this condition: login as a patient and tap Visits on the bottom navigation bar.",
+    "action": "The listed user performs the My Appointments function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Patient has upcoming appointment.",
+        "expected": "Must be able to display upcoming appointment."
+      }
+    ],
+    "source_tag": "unit-mobile-11"
+  },
+  {
+    "module": "PATIENT APPOINTMENTS MODULE",
+    "function": "BOOK APPOINTMENT",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The listed user must satisfy this condition: login as a patient, tap Visits on the bottom navigation bar, and tap Book Appointment.",
+    "action": "The listed user performs the Book Appointment function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Complete and valid required fields, the patient has no ongoing appointment, and selected date and time are available.",
+        "expected": "Must successfully complete the Book Appointment flow so that appointment is submitted successfully and appear in My Appointments."
+      }
+    ],
+    "source_tag": "unit-mobile-12"
+  },
+  {
+    "module": "PATIENT APPOINTMENTS MODULE",
+    "function": "MANAGE APPOINTMENT",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The listed user must satisfy this condition: login as Patient, tap Visits on the bottom navigation bar, then select an upcoming appointment.",
+    "action": "The listed user performs the Manage Appointment function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Cancel an eligible Pending or Confirmed appointment with valid cancellation reason.",
+        "expected": "Must be able to display appointment status Cancelled."
+      }
+    ],
+    "source_tag": "unit-mobile-13"
+  },
+  {
+    "module": "ORAL HEALTH MANAGEMENT MODULE",
+    "function": "DAILY ORAL HEALTH LOG",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The listed user must satisfy this condition: login as a patient, tap Health on the bottom navigation bar, open Today, and select today or an earlier date.",
+    "action": "The listed user performs the Daily Oral Health Log function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Select any valid symptom, oral care habit, or other factor and click Save Entry.",
+        "expected": "Must be able to display the message \"Daily oral health log saved\""
+      }
+    ],
+    "source_tag": "unit-mobile-14"
+  },
+  {
+    "module": "ORAL HEALTH MANAGEMENT MODULE",
+    "function": "ORAL HEALTH CALENDAR & HISTORY",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The listed user must satisfy this condition: login as a patient, tap Health on the bottom navigation bar, and open Calendar.",
+    "action": "The listed user performs the Oral Health Calendar & History function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Select a date with an existing Daily Oral Health Log.",
+        "expected": "Must be able to display the selected Daily Oral Health Log and label the selected date \"Patient Log\""
+      }
+    ],
+    "source_tag": "unit-mobile-15"
+  },
+  {
+    "module": "ORAL HEALTH MANAGEMENT MODULE",
+    "function": "ORAL HEALTH TRENDS",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The listed user must satisfy this condition: login as a patient, tap Health on the bottom navigation bar, and open Trends.",
+    "action": "The listed user performs the Oral Health Trends function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "At least two Daily Oral Health Logs within the last 30 days.",
+        "expected": "Must be able to display 7-day and 30-day Oral Health Management trend counts."
+      }
+    ],
+    "source_tag": "unit-mobile-16"
+  },
+  {
+    "module": "ORAL HEALTH MANAGEMENT MODULE",
+    "function": "RECOMMENDED VISIT WINDOW",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The listed user must satisfy this condition: login as a patient, tap Health on the bottom navigation bar, and ensure the Recommended Visit Window section is available.",
+    "action": "The listed user performs the Recommended Visit Window function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Dentist Suggested Next Visit exists and no earlier-contact rule applies.",
+        "expected": "Must be able to display the dentist-recommended visit window as the primary planned-care recommendation."
+      }
+    ],
+    "source_tag": "unit-mobile-17"
+  },
+  {
+    "module": "DENTAL HEALTH EDUCATION MODULE",
+    "function": "CONTEXTUAL DENTAL HEALTH EDUCATION",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The listed user must satisfy this condition: login as Patient, tap Health on the bottom navigation bar and a Daily Oral Health Log must be available.",
+    "action": "The listed user performs the Contextual Dental Health Education function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Daily Oral Health Log contains Sensitivity.",
+        "expected": "Must be able to display \"Understanding tooth sensitivity\""
+      }
+    ],
+    "source_tag": "unit-mobile-18"
+  },
+  {
+    "module": "DENTAL HEALTH EDUCATION MODULE",
+    "function": "DENTAL HEALTH EDUCATION LIBRARY",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The listed user must satisfy this condition: login as a patient, tap Health on the bottom navigation bar, and open Dental Health Education.",
+    "action": "The listed user performs the Dental Health Education Library function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Open Dental Health Education.",
+        "expected": "Must be able to display available Dental Health Education articles and categories."
+      }
+    ],
+    "source_tag": "unit-mobile-19"
+  },
+  {
+    "module": "PATIENT NOTIFICATIONS MODULE",
+    "function": "NOTIFICATION INBOX",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The listed user must satisfy this condition: login as a patient, tap the notification bell on Home, and open Notifications.",
+    "action": "The listed user performs the Notification Inbox function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Patient has read and unread notifications.",
+        "expected": "Must be able to display notification list, unread count, and total notification count correctly."
+      }
+    ],
+    "source_tag": "unit-mobile-20"
+  },
+  {
+    "module": "PATIENT MEDICAL RECORDS MODULE",
+    "function": "VIEW EMR",
+    "access": "Patient",
+    "system": "Mobile Application",
+    "preconditions": "The listed user must satisfy this condition: login as a patient and tap Records on the bottom navigation bar.",
+    "action": "The listed user performs the View Emr function using the condition stated in each test scenario.",
+    "verification": "Complete the successful flow and verify that the system displays the stated output.",
+    "scenarios": [
+      {
+        "number": "1",
+        "condition": "Patient has Medical & Dental History.",
+        "expected": "Must be able to display the patient's Medical and Dental History."
+      }
+    ],
+    "source_tag": "unit-mobile-21"
+  }
+]

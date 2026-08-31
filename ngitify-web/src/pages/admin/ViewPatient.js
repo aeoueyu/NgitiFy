@@ -82,6 +82,7 @@ export default function ViewPatient({ patientId, onClose, onEdit, onOpenRecord, 
     const birthRaw = patient?.birthdate || patient?.dob || patient?.dateOfBirth;
     const age = getAge(birthRaw);
     const isMinor = age !== null && age < 18;
+    const isMalePatient = String(patient?.gender || patient?.sex || '').trim().toLowerCase() === 'male';
     const bloodType = patient?.bloodType || patient?.medicalHistory?.bloodType || 'Not provided';
     const accountLifecycleLabel = getAccountLifecycleLabel(patient);
     const assignedBranch = patient?.assignedBranch || patient?.assignedBranches?.[0] || 'Not assigned';
@@ -211,9 +212,13 @@ export default function ViewPatient({ patientId, onClose, onEdit, onOpenRecord, 
                             {infoBox('In Good Health?', formatYesNo(patient.medicalHistory?.inGoodHealth))}
                             {infoBox('Uses Tobacco?', formatYesNo(patient.medicalHistory?.usesTobacco))}
                             {infoBox('Uses Alcohol / Drugs?', formatYesNo(patient.medicalHistory?.usesAlcoholOrDrugs))}
-                            {infoBox('Pregnant?', formatYesNo(patient.medicalHistory?.isPregnant))}
-                            {infoBox('Nursing?', formatYesNo(patient.medicalHistory?.isNursing))}
-                            {infoBox('Taking Birth Control Pills?', formatYesNo(patient.medicalHistory?.takingBirthControl))}
+                            {!isMalePatient && (
+                                <>
+                                    {infoBox('Pregnant?', formatYesNo(patient.medicalHistory?.isPregnant))}
+                                    {infoBox('Nursing?', formatYesNo(patient.medicalHistory?.isNursing))}
+                                    {infoBox('Taking Birth Control Pills?', formatYesNo(patient.medicalHistory?.takingBirthControl))}
+                                </>
+                            )}
                         </div>
 
                         <div className={styles.infoGrid}>

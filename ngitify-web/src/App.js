@@ -203,6 +203,7 @@ function App() {
                   <Route path="/owner/dashboard"                    element={<OwnerDashboard />} />
                   <Route path="/owner/appointments"                 element={<Navigate to="/owner/schedule" replace />} />
                   <Route path="/owner/schedule"                     element={<SchedulePage />} />
+                  <Route path="/owner/my-schedule"                  element={<SchedulePage scheduleScope="my-schedule" dentistExperience title="My Schedule" />} />
                   <Route path="/owner/manage-users"                 element={<Navigate to="/owner/manage-staffs/secretaries" replace />} />
                   <Route path="/owner/manage-users/*"               element={<Navigate to="/owner/manage-staffs/secretaries" replace />} />
                   <Route path="/owner/manage-staffs"                element={<Navigate to="/owner/manage-staffs/secretaries" replace />} />
@@ -214,7 +215,8 @@ function App() {
                   <Route path="/owner/manage-staffs/owners"          element={<Navigate to="/owner/manage-staffs/secretaries" replace />} />
                   <Route path="/owner/patients/:patientId/emr"      element={<AdminPatientEMR />} />
                   <Route path="/owner/patient-emr"                  element={<PatientEMRPage />} />
-                  <Route path="/owner/my-patients"                  element={<PatientEMRPage patientScope="my-patients" />} />
+                  <Route path="/owner/my-patients"                  element={<ManagePatients patientScope="my-patients" dentistExperience title="My Patients" />} />
+                  <Route path="/owner/my-patients/:patientId/emr"   element={<DentistPatientEMR />} />
                   <Route path="/owner/material-usage"               element={<DentistMaterialUsage />} />
                   <Route path="/owner/branches"                     element={<BranchManagement />} />
                   <Route path="/owner/branches/analytics"           element={<BranchAnalytics />} />

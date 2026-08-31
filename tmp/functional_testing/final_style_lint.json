@@ -1,0 +1,170 @@
+{
+  "input": "C:\\Users\\Administrator\\Desktop\\NGITIFY DENTIME\\output\\documents\\NGITIFY_Complete_Functional_Testing.docx",
+  "fonts_by_char_count": {
+    "Calibri": 173719
+  },
+  "direct_run_formatting_runs": 3383,
+  "direct_paragraph_formatting_paragraphs": 3477,
+  "heading_like_paragraphs_not_heading_style": [
+    {
+      "para_index": 1,
+      "text": "FUNCTIONAL TESTING DOCUMENT",
+      "style": "Normal"
+    },
+    {
+      "para_index": 5,
+      "text": "Total functional cases: 95",
+      "style": "Normal"
+    },
+    {
+      "para_index": 7,
+      "text": "FUNCTIONALITY TEST: PUBLIC USER / PATIENT - WEB APPLICATION",
+      "style": "Normal"
+    },
+    {
+      "para_index": 10,
+      "text": "FUNCTIONALITY TEST: PATIENT - WEB APPLICATION",
+      "style": "Normal"
+    },
+    {
+      "para_index": 52,
+      "text": "FUNCTIONALITY TEST: ADMINISTRATOR, OWNER, AND BRANCH MANAGER - WEB APPLICATION",
+      "style": "Normal"
+    },
+    {
+      "para_index": 55,
+      "text": "FUNCTIONALITY TEST: ADMINISTRATOR, OWNER, AND BRANCH MANAGER - WEB APPLICATION",
+      "style": "Normal"
+    },
+    {
+      "para_index": 58,
+      "text": "FUNCTIONALITY TEST: ADMINISTRATOR, OWNER, AND BRANCH MANAGER - WEB APPLICATION",
+      "style": "Normal"
+    },
+    {
+      "para_index": 61,
+      "text": "FUNCTIONALITY TEST: ADMINISTRATOR, OWNER, AND BRANCH MANAGER - WEB APPLICATION",
+      "style": "Normal"
+    },
+    {
+      "para_index": 67,
+      "text": "FUNCTIONALITY TEST: ADMINISTRATOR AND SECRETARY - WEB APPLICATION",
+      "style": "Normal"
+    },
+    {
+      "para_index": 70,
+      "text": "FUNCTIONALITY TEST: ADMINISTRATOR AND SECRETARY - WEB APPLICATION",
+      "style": "Normal"
+    },
+    {
+      "para_index": 73,
+      "text": "FUNCTIONALITY TEST: ADMINISTRATOR, OWNER, AND BRANCH MANAGER - WEB APPLICATION",
+      "style": "Normal"
+    },
+    {
+      "para_index": 76,
+      "text": "FUNCTIONALITY TEST: ADMINISTRATOR, OWNER, AND BRANCH MANAGER - WEB APPLICATION",
+      "style": "Normal"
+    },
+    {
+      "para_index": 79,
+      "text": "FUNCTIONALITY TEST: ADMINISTRATOR AND OWNER - WEB APPLICATION",
+      "style": "Normal"
+    },
+    {
+      "para_index": 82,
+      "text": "FUNCTIONALITY TEST: ADMINISTRATOR AND OWNER - WEB APPLICATION",
+      "style": "Normal"
+    },
+    {
+      "para_index": 85,
+      "text": "FUNCTIONALITY TEST: ADMINISTRATOR AND OWNER - WEB APPLICATION",
+      "style": "Normal"
+    },
+    {
+      "para_index": 88,
+      "text": "FUNCTIONALITY TEST: ADMINISTRATOR, OWNER, AND BRANCH MANAGER - WEB APPLICATION",
+      "style": "Normal"
+    },
+    {
+      "para_index": 103,
+      "text": "FUNCTIONALITY TEST: ADMINISTRATOR, OWNER, AND DENTIST - WEB APPLICATION",
+      "style": "Normal"
+    },
+    {
+      "para_index": 106,
+      "text": "FUNCTIONALITY TEST: OWNER AND DENTIST - WEB APPLICATION",
+      "style": "Normal"
+    },
+    {
+      "para_index": 109,
+      "text": "FUNCTIONALITY TEST: OWNER AND DENTIST - WEB APPLICATION",
+      "style": "Normal"
+    },
+    {
+      "para_index": 112,
+      "text": "FUNCTIONALITY TEST: OWNER AND DENTIST - WEB APPLICATION",
+      "style": "Normal"
+    }
+  ],
+  "examples": {
+    "direct_paragraph_formatting": [
+      {
+        "para_index": 1,
+        "text": "FUNCTIONAL TESTING DOCUMENT",
+        "style": "Normal"
+      },
+      {
+        "para_index": 2,
+        "text": "NGITIFY: A Dental Information Management System with AI-Driven Patient Engagement for Dentime Dental Clinic",
+        "style": "Normal"
+      },
+      {
+        "para_index": 3,
+        "text": "Scope: observable functional outputs for the public website, role-based web application, and patient mobile application.",
+        "style": "Normal"
+      },
+      {
+        "para_index": 5,
+        "text": "Total functional cases: 95",
+        "style": "Normal"
+      },
+      {
+        "para_index": 7,
+        "text": "FUNCTIONALITY TEST: PUBLIC USER / PATIENT - WEB APPLICATION",
+        "style": "Normal"
+      }
+    ],
+    "direct_run_formatting": [
+      {
+        "para_index": 1,
+        "run_text": "FUNCTIONAL TESTING DOCUMENT",
+        "style": "Normal"
+      },
+      {
+        "para_index": 2,
+        "run_text": "NGITIFY: A Dental Information Management System with AI-Driven Patient Engagemen",
+        "style": "Normal"
+      },
+      {
+        "para_index": 3,
+        "run_text": "Scope: observable functional outputs for the public website, role-based web appl",
+        "style": "Normal"
+      },
+      {
+        "para_index": 5,
+        "run_text": "Total functional cases: 95",
+        "style": "Normal"
+      },
+      {
+        "para_index": 7,
+        "run_text": "FUNCTIONALITY TEST: PUBLIC USER / PATIENT - WEB APPLICATION",
+        "style": "Normal"
+      }
+    ]
+  },
+  "notes": [
+    "Direct formatting is not always wrong, but it often causes inconsistent output when templates change.",
+    "Heading-like paragraphs not using Heading styles can break TOC and accessibility."
+  ]
+}

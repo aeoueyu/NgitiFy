@@ -1,0 +1,3010 @@
+{
+  "path": "C:\\Users\\Administrator\\Downloads\\integration testing.docx",
+  "sections": [
+    {
+      "page_width_in": 8.5,
+      "page_height_in": 11.0,
+      "top_margin_in": 1.0,
+      "bottom_margin_in": 1.0,
+      "left_margin_in": 1.0,
+      "right_margin_in": 1.0,
+      "header_distance_in": 0.5,
+      "footer_distance_in": 0.5,
+      "header": [
+        ""
+      ],
+      "footer": [
+        ""
+      ]
+    }
+  ],
+  "inline_shapes": 297,
+  "blocks": [
+    {
+      "index": 0,
+      "type": "table",
+      "rows": [
+        [
+          "INTEGRATION TEST DOCUMENT",
+          "INTEGRATION TEST DOCUMENT",
+          "Application/System Name",
+          "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMENT FOR DENTIME DENTAL CLINIC",
+          "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMENT FOR DENTIME DENTAL CLINIC",
+          "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMENT FOR DENTIME DENTAL CLINIC"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "User/Access Type",
+          "Patient",
+          "Patient",
+          "Patient"
+        ],
+        [
+          "Date Tested",
+          "08/25/2026",
+          "Type of System",
+          "Mobile Application",
+          "Mobile Application",
+          "Mobile Application"
+        ],
+        [
+          "Pre-conditions",
+          "Open the mobile app",
+          "Open the mobile app",
+          "Open the mobile app",
+          "Open the mobile app",
+          "Open the mobile app"
+        ],
+        [
+          "Verification Steps",
+          "Functions are working with no errors",
+          "Functions are working with no errors",
+          "Functions are working with no errors",
+          "Functions are working with no errors",
+          "Functions are working with no errors"
+        ],
+        [
+          "Modules",
+          "Action Description",
+          "Action Description",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "Login",
+          "Click the NgitiFy mobile application",
+          "Click the NgitiFy mobile application",
+          "Displays the Login page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Click Forgot Password button",
+          "Click Forgot Password button",
+          "Displays the Forgot Password page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Input the correct registered email, then click Send Verification Code button",
+          "Input the correct registered email, then click Send Verification Code button",
+          "System verifies the email and displays the OTP page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Input the correct OTP, then click VERIFY CODE button",
+          "Input the correct OTP, then click VERIFY CODE button",
+          "System verifies the OTP and displays the Reset Password page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Input the new password and confirm new password, then click Reset Password button",
+          "Input the new password and confirm new password, then click Reset Password button",
+          "System updates the password in the database and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login",
+          "Input the correct email and password, then click the Login button",
+          "Input the correct email and password, then click the Login button",
+          "System generates a token and displays the patient dashboard",
+          "",
+          "PASSED"
+        ],
+        [
+          "Dashboard",
+          "Click the Home on the navigation menu",
+          "Click the Home on the navigation menu",
+          "Displays the dashboard summary",
+          "",
+          "PASSED"
+        ],
+        [
+          "Appointment Scheduling",
+          "Click Book Appointment button",
+          "Click Book Appointment button",
+          "Displays the appointment booking form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Appointment Scheduling",
+          "Select the available date and time, and the preferred procedure, then click Book Appointment button",
+          "Select the available date and time, and the preferred procedure, then click Book Appointment button",
+          "System saves the appointment in the database and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Appointment Scheduling",
+          "Click Reschedule Appointment button",
+          "Click Reschedule Appointment button",
+          "Displays the appointment rescheduling form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Appointment Scheduling",
+          "Select the new appointment date and time, then click Confirm Reschedule button",
+          "Select the new appointment date and time, then click Confirm Reschedule button",
+          "System updates the appointment schedule in the database and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Appointment Scheduling",
+          "Click Cancel Appointment button",
+          "Click Cancel Appointment button",
+          "System cancels the appointment in the database and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "AI Patient Care Companion/NgitiBot",
+          "Click NgitiBot floating button",
+          "Click NgitiBot floating button",
+          "Displays the NgitiBot conversation window",
+          "",
+          "PASSED"
+        ],
+        [
+          "AI Patient Care Companion/NgitiBot",
+          "Input a patient care question, then click Send button",
+          "Input a patient care question, then click Send button",
+          "System processes the question and displays the NgitiBot response",
+          "",
+          "PASSED"
+        ],
+        [
+          "AI Patient Care Companion/\nDental Health Education",
+          "Click Dental Health Education button",
+          "Click Dental Health Education button",
+          "Displays the dental health education materials",
+          "",
+          "PASSED"
+        ],
+        [
+          "AI Patient Care Companion/\nOral Health Management",
+          "Click Oral Health Management button",
+          "Click Oral Health Management button",
+          "Displays the Oral Health Management page",
+          "",
+          "PASSED"
+        ],
+        [
+          "AI Patient Care Companion/\nPredictive Visit",
+          "Click View Predictive Visit button",
+          "Click View Predictive Visit button",
+          "Displays the Recommended Visit Window and its explanation",
+          "",
+          ""
+        ],
+        [
+          "Electronic Medical Record (EMR)/\nMedical and Dental History",
+          "Click Medical and Dental History",
+          "Click Medical and Dental History",
+          "Displays the Medical and Dental History",
+          "",
+          "PASSED"
+        ],
+        [
+          "Electronic Medical Record (EMR)/\nTreatment History",
+          "Click Treatment History",
+          "Click Treatment History",
+          "Displays the Treatment History",
+          "",
+          "PASSED"
+        ],
+        [
+          "Electronic Medical Record (EMR)/\nOdontogram",
+          "Click Odontogram",
+          "Click Odontogram",
+          "Displays the patient odontogram",
+          "",
+          "PASSED"
+        ],
+        [
+          "Electronic Medical Record (EMR)/\nRadiograph Images",
+          "Click Radiographs",
+          "Click Radiographs",
+          "Displays the uploaded\nX-ray images",
+          "",
+          "PASSED"
+        ],
+        [
+          "Notification",
+          "Click Notification button on the dashboard",
+          "Click Notification button on the dashboard",
+          "Displays the Notifications page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Activity Logs",
+          "Click Activity Logs on the settings",
+          "Click Activity Logs on the settings",
+          "Displays the Activity Logs page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nView Profile",
+          "Click Profile",
+          "Click Profile",
+          "Displays the user profile information",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nEdit Profile",
+          "Click Edit button",
+          "Click Edit button",
+          "Displays the edit profile form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nEdit Profile",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the profile information in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nChange Password",
+          "Input a correct current password, new password, and confirm new password, then click Update Password button",
+          "Input a correct current password, new password, and confirm new password, then click Update Password button",
+          "System updates the password in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Logout",
+          "Click Logout button",
+          "Click Logout button",
+          "System logs the user out and displays the Login page",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 2,
+      "type": "table",
+      "rows": [
+        [
+          "INTEGRATION TEST DOCUMENT",
+          "INTEGRATION TEST DOCUMENT",
+          "Application/System Name",
+          "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMENT FOR DENTIME DENTAL CLINIC",
+          "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMENT FOR DENTIME DENTAL CLINIC",
+          "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMENT FOR DENTIME DENTAL CLINIC"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "User/Access Type",
+          "Admin",
+          "Admin",
+          "Admin"
+        ],
+        [
+          "Date Tested",
+          "08/25/2026",
+          "Type of System",
+          "Web Application",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-conditions",
+          "Open the browser",
+          "Open the browser",
+          "Open the browser",
+          "Open the browser",
+          "Open the browser"
+        ],
+        [
+          "Verification Steps",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors"
+        ],
+        [
+          "Modules",
+          "Action Description",
+          "Action Description",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "Login",
+          "Enter the correct URL",
+          "Enter the correct URL",
+          "Displays the Login page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Click Forgot Password button",
+          "Click Forgot Password button",
+          "Displays the Forgot Password Page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Click Back to Login button",
+          "Click Back to Login button",
+          "Displays the Login Page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Input correct registered email, then click Send Code button",
+          "Input correct registered email, then click Send Code button",
+          "System verifies the email and redirects to the OTP page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Input the correct OTP, then click ENTER button",
+          "Input the correct OTP, then click ENTER button",
+          "System verifies the OTP and redirects to the reset password page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Input correct new password format matched with confirm new password, then click Reset Password button",
+          "Input correct new password format matched with confirm new password, then click Reset Password button",
+          "System updates the password in the database and redirects to the login page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login",
+          "Enter the correct email and password, then click Login button",
+          "Enter the correct email and password, then click Login button",
+          "System verifies the account and displays the administrator dashboard",
+          "",
+          "PASSED"
+        ],
+        [
+          "Dashboard",
+          "Click the Dashboard from the sidebar",
+          "Click the Dashboard from the sidebar",
+          "Displays the dashboard summary",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management",
+          "Click Schedule from the sidebar",
+          "Click Schedule from the sidebar",
+          "Displays the schedule list",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management",
+          "Click View Schedule details",
+          "Click View Schedule details",
+          "Displays the selected schedule details",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management/\nEdit Schedule Details",
+          "Click Edit Schedule Details button",
+          "Click Edit Schedule Details button",
+          "Displays the edit schedule",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management/\nEdit Schedule Details",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the schedule details information in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management/\nApprove Schedule Entry",
+          "Click Confirm Appointment button",
+          "Click Confirm Appointment button",
+          "System confirms the appointment and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management/\nReject Schedule Entry",
+          "Click Cancel Appointment button",
+          "Click Cancel Appointment button",
+          "System rejects the appointment and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "User Accounts Management/\nSearch User Accounts",
+          "Input a valid name or email",
+          "Input a valid name or email",
+          "System searches the database and displays the matching user accounts",
+          "",
+          "PASSED"
+        ],
+        [
+          "User Accounts Management/\nCreate User Account",
+          "Click Add button",
+          "Click Add button",
+          "Displays the create user account form",
+          "",
+          "PASSED"
+        ],
+        [
+          "User Accounts Management/\nCreate User Account",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System saves the user account information in the database and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "User Accounts Management/\nEdit Use Account Details",
+          "Click Edit button",
+          "Click Edit button",
+          "Displays the edit user account form",
+          "",
+          "PASSED"
+        ],
+        [
+          "User Accounts Management/\nEdit Use Account Details",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the user account information in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "User Accounts Management/\nDeactivate User Account",
+          "Click Deactivate User Account button",
+          "Click Deactivate User Account button",
+          "System deactivates the user account, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "User Accounts Management/\nArchive User Account",
+          "Click Archive User Account button",
+          "Click Archive User Account button",
+          "System archives the user account, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nPatient Profile",
+          "Click Patient Profile tab",
+          "Click Patient Profile tab",
+          "Displays the selected patient profile",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nMedical and Dental History",
+          "Click Medical and Dental History tab",
+          "Click Medical and Dental History tab",
+          "Displays the selected patient medical and dental history",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nMedical and Dental History",
+          "Click Edit button",
+          "Click Edit button",
+          "Displays the edit medical and dental history form",
+          "",
+          ""
+        ],
+        [
+          "Patient EMR/\nMedical and Dental History",
+          "Input all field completely and in the correct format, then click Save button",
+          "Input all field completely and in the correct format, then click Save button",
+          "System updates the medical and dental history information in the database, and displays a success message",
+          "",
+          ""
+        ],
+        [
+          "Patient EMR/\nTreatment History",
+          "Click Treatment History tab",
+          "Click Treatment History tab",
+          "Displays the selected patient treatment history",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nTreatment History",
+          "Click View Treatment Notes",
+          "Click View Treatment Notes",
+          "Displays the selected treatment notes",
+          "",
+          ""
+        ],
+        [
+          "Patient EMR/\nDigital Odontogram",
+          "Click Odontogram tab",
+          "Click Odontogram tab",
+          "Displays the selected patient digital odontogram",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nRadiograph",
+          "Click Radiograph tab",
+          "Click Radiograph tab",
+          "Displays the selected patient X-ray",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nRadiograph",
+          "Click X-ray Images",
+          "Click X-ray Images",
+          "Display the X-ray summary notes",
+          "",
+          "PASSED"
+        ],
+        [
+          "Branch Management and Expansion Analytics",
+          "Click Branches from the sidebar",
+          "Click Branches from the sidebar",
+          "Displays the clinic branches list",
+          "",
+          "PASSED"
+        ],
+        [
+          "Branch Management and Expansion Analytics",
+          "Click View Individual Branch Details",
+          "Click View Individual Branch Details",
+          "Displays the selected branch analytics",
+          "",
+          "PASSED"
+        ],
+        [
+          "Branch Management and Expansion Analytics",
+          "Click Edit Branch Details",
+          "Click Edit Branch Details",
+          "Displays the edit branch details form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Branch Management and Expansion Analytics",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the branch details in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring",
+          "Click Inventory from the sidebar",
+          "Click Inventory from the sidebar",
+          "Displays the Supply and Stock Monitoring page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring",
+          "Click View Item Categories List",
+          "Click View Item Categories List",
+          "Displays the item categories list",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring/\nUpdate Item Stock Quantity",
+          "Click Receive stock button",
+          "Click Receive stock button",
+          "Displays the Receive Stock form",
+          "",
+          ""
+        ],
+        [
+          "Supply and Stock Monitoring/\nUpdate Item Stock Quantity",
+          "Input the valid stock information, then click Yes, Save Stock button",
+          "Input the valid stock information, then click Yes, Save Stock button",
+          "System adds the stock batch and updates the on-hand quantity",
+          "",
+          ""
+        ],
+        [
+          "Supply and Stock Monitoring/\nAdd New Supply Entry",
+          "Click Add New Item button",
+          "Click Add New Item button",
+          "Displays the Add New Item form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring/\nAdd New Supply Entry",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System saves the supply entry information in the database, and displays a success message",
+          "",
+          ""
+        ],
+        [
+          "Supply and Stock Monitoring/\nEdit Item Details",
+          "Click Edit item button",
+          "Click Edit item button",
+          "Displays the Edit Inventory Item form",
+          "",
+          ""
+        ],
+        [
+          "Supply and Stock Monitoring/\nEdit Item Details",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the item details information in the database, and displays a success message",
+          "",
+          ""
+        ],
+        [
+          "Supply and Stock Monitoring",
+          "Input a valid item name, category, stock-in number, brand, or batch number in the search field",
+          "Input a valid item name, category, stock-in number, brand, or batch number in the search field",
+          "System searches the database and displays matching supply items",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring",
+          "Click the In Stock, Low Stock, or Out of Stock filter",
+          "Click the In Stock, Low Stock, or Out of Stock filter",
+          "Displays supply items with the selected stock status",
+          "",
+          "PASSED"
+        ],
+        [
+          "Branch Transfer Management",
+          "Click Transfer Branch button on selected patient",
+          "Click Transfer Branch button on selected patient",
+          "Display branch transfer form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Branch Transfer Management",
+          "Select a valid destination branch, input a valid transfer reason, then click Confirm Transfer button",
+          "Select a valid destination branch, input a valid transfer reason, then click Confirm Transfer button",
+          "System transfers the selected patient to the destination branch and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Database Backup",
+          "Click Database Backup from the sidebar",
+          "Click Database Backup from the sidebar",
+          "Displays the Database Backup page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Database Backup",
+          "Click Refresh button",
+          "Click Refresh button",
+          "System refreshes the database backup information",
+          "",
+          "PASSED"
+        ],
+        [
+          "Database Backup",
+          "Click Create Backup Now button",
+          "Click Create Backup Now button",
+          "System starts the database backup and displays the backup progress",
+          "",
+          "PASSED"
+        ],
+        [
+          "Database Backup",
+          "Click Download Available Backup button",
+          "Click Download Available Backup button",
+          "System downloads the selected available database backup",
+          "",
+          "PASSED"
+        ],
+        [
+          "Integrity Tools",
+          "Click the Integrity Tools from the sidebar",
+          "Click the Integrity Tools from the sidebar",
+          "Displays the Integrity Tools page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Integrity Tools",
+          "Click Run Data Validation Scan button",
+          "Click Run Data Validation Scan button",
+          "System runs the data validation scan and displays the validation result",
+          "",
+          "PASSED"
+        ],
+        [
+          "System Configuration",
+          "Click System Config from the sidebar",
+          "Click System Config from the sidebar",
+          "Displays the System Configuration page",
+          "",
+          ""
+        ],
+        [
+          "System Configuration",
+          "Input the correct clinic name, contact number, email address, and address, then click Save Changes button",
+          "Input the correct clinic name, contact number, email address, and address, then click Save Changes button",
+          "System updates the system configuration in the database, and displays a success message",
+          "",
+          ""
+        ],
+        [
+          "Audit Trail",
+          "Click Audit Trail from the sidebar",
+          "Click Audit Trail from the sidebar",
+          "Displays the Audit Trail page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Audit Trail",
+          "Input a valid audit log keyword on the search bar",
+          "Input a valid audit log keyword on the search bar",
+          "System searches the database and displays matching system audit logs",
+          "",
+          "PASSED"
+        ],
+        [
+          "Audit Trail",
+          "Click the user or date filter",
+          "Click the user or date filter",
+          "Displays audit logs for the selected user or date",
+          "",
+          "PASSED"
+        ],
+        [
+          "Notifications",
+          "Click Notifications from the sidebar",
+          "Click Notifications from the sidebar",
+          "Displays the Notifications page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Activity Logs",
+          "Click Activity Logs from the sidebar",
+          "Click Activity Logs from the sidebar",
+          "Displays the Activity Logs page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nView Profile",
+          "Click My Profile from the sidebar",
+          "Click My Profile from the sidebar",
+          "Displays the user profile information",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nEdit Profile",
+          "Click Edit Profile button",
+          "Click Edit Profile button",
+          "Displays the edit profile form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nEdit Profile",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the profile information in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nChange Password",
+          "Click Change Password tab",
+          "Click Change Password tab",
+          "Displays the Change Password page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nChange Password",
+          "Input the correct current password, new password, and confirm new password, then click Save button",
+          "Input the correct current password, new password, and confirm new password, then click Save button",
+          "System updates the password in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Sign out",
+          "Click Logout from the sidebar",
+          "Click Logout from the sidebar",
+          "System logs the user out and displays the Login page",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 4,
+      "type": "table",
+      "rows": [
+        [
+          "INTEGRATION TEST DOCUMENT",
+          "INTEGRATION TEST DOCUMENT",
+          "Application/System Name",
+          "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMENT FOR DENTIME DENTAL CLINIC",
+          "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMENT FOR DENTIME DENTAL CLINIC",
+          "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMENT FOR DENTIME DENTAL CLINIC"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "User/Access Type",
+          "Owner",
+          "Owner",
+          "Owner"
+        ],
+        [
+          "Date Tested",
+          "08/25/2026",
+          "Type of System",
+          "Web Application",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-conditions",
+          "Open the browser",
+          "Open the browser",
+          "Open the browser",
+          "Open the browser",
+          "Open the browser"
+        ],
+        [
+          "Verification Steps",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors"
+        ],
+        [
+          "Modules",
+          "Action Description",
+          "Action Description",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "Login",
+          "Enter the correct URL",
+          "Enter the correct URL",
+          "Displays the Login page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Click Forgot Password button",
+          "Click Forgot Password button",
+          "Displays the Forgot Password Page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Click Back to Login button",
+          "Click Back to Login button",
+          "Displays the Login Page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Input correct registered email, then click Send Code button",
+          "Input correct registered email, then click Send Code button",
+          "System verifies the email and redirects to the OTP page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Input the correct OTP, then click ENTER button",
+          "Input the correct OTP, then click ENTER button",
+          "System verifies the OTP and redirects to the reset password page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Input correct new password format matched with confirm new password, then click Reset Password button",
+          "Input correct new password format matched with confirm new password, then click Reset Password button",
+          "System updates the password in the database and redirects to the login page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login",
+          "Enter the correct email and password, then click Login button",
+          "Enter the correct email and password, then click Login button",
+          "System verifies the account and displays the owner dashboard",
+          "",
+          "PASSED"
+        ],
+        [
+          "Dashboard",
+          "Click the Dashboard from the sidebar",
+          "Click the Dashboard from the sidebar",
+          "Displays the dashboard summary",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management",
+          "Click Schedule from the sidebar",
+          "Click Schedule from the sidebar",
+          "Displays the schedule list",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management",
+          "Click View Schedule details",
+          "Click View Schedule details",
+          "Displays the selected schedule details",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management/\nEdit Schedule Details",
+          "Click Edit Schedule Details button",
+          "Click Edit Schedule Details button",
+          "Displays the edit schedule",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management/\nEdit Schedule Details",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the schedule details information in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management/\nApprove Schedule Entry",
+          "Click Confirm Appointment button",
+          "Click Confirm Appointment button",
+          "System confirms the appointment and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management/\nReject Schedule Entry",
+          "Click Cancel Appointment button",
+          "Click Cancel Appointment button",
+          "System rejects the appointment and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "User Accounts Management/\nSearch User Accounts",
+          "Input a valid name or email",
+          "Input a valid name or email",
+          "System searches the database and displays the matching user accounts",
+          "",
+          "PASSED"
+        ],
+        [
+          "User Accounts Management/\nCreate User Account",
+          "Click Add button",
+          "Click Add button",
+          "Displays the create user account form",
+          "",
+          "PASSED"
+        ],
+        [
+          "User Accounts Management/\nCreate User Account",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System saves the user account information in the database and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "User Accounts Management/\nEdit Use Account Details",
+          "Click Edit button",
+          "Click Edit button",
+          "Displays the edit user account form",
+          "",
+          "PASSED"
+        ],
+        [
+          "User Accounts Management/\nEdit Use Account Details",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the user account information in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "User Accounts Management/\nDeactivate User Account",
+          "Click Deactivate User Account button",
+          "Click Deactivate User Account button",
+          "System deactivates the user account, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "User Accounts Management/\nArchive User Account",
+          "Click Archive User Account button",
+          "Click Archive User Account button",
+          "System archives the user account, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nPatient Profile",
+          "Click Patient Profile tab",
+          "Click Patient Profile tab",
+          "Displays the selected patient profile",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nMedical and Dental History",
+          "Click Medical and Dental History tab",
+          "Click Medical and Dental History tab",
+          "Displays the selected patient medical and dental history",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nTreatment History",
+          "Click Treatment History tab",
+          "Click Treatment History tab",
+          "Displays the selected patient treatment history",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nTreatment History",
+          "Click Add New Log button",
+          "Click Add New Log button",
+          "Displays the add new log form",
+          "",
+          ""
+        ],
+        [
+          "Patient EMR/\nTreatment History",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System saves the treatment log in the database, and displays a success message",
+          "",
+          ""
+        ],
+        [
+          "Patient EMR/\nTreatment History",
+          "Click Edit Log button",
+          "Click Edit Log button",
+          "Displays the edit log form",
+          "",
+          ""
+        ],
+        [
+          "Patient EMR/\nTreatment History",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the treatment log in the database, and displays a success message",
+          "",
+          ""
+        ],
+        [
+          "Patient EMR/\nTreatment History",
+          "Click Delete Log button",
+          "Click Delete Log button",
+          "System deletes the treatment log in the database, and displays a success message",
+          "",
+          ""
+        ],
+        [
+          "Patient EMR/\nDigital Odontogram",
+          "Click Odontogram tab",
+          "Click Odontogram tab",
+          "Displays the selected patient digital odontogram",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nDigital Odontogram",
+          "Click Edit Odontogram button",
+          "Click Edit Odontogram button",
+          "Displays the edit odontogram form",
+          "",
+          ""
+        ],
+        [
+          "Patient EMR/\nDigital Odontogram",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the odontogram in the database, and displays a success message",
+          "",
+          ""
+        ],
+        [
+          "Patient EMR/\nRadiograph",
+          "Click Radiograph tab",
+          "Click Radiograph tab",
+          "Displays the selected patient X-ray",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nRadiograph",
+          "Click X-ray Images",
+          "Click X-ray Images",
+          "Display the X-ray summary notes",
+          "",
+          "PASSED"
+        ],
+        [
+          "Material Usage Logging",
+          "Click Material Usage Log from the sidebar",
+          "Click Material Usage Log from the sidebar",
+          "Displays the Material Usage Log page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Material Usage Logging",
+          "Click Log New Entry button",
+          "Click Log New Entry button",
+          "Displays the material usage entry form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Material Usage Logging",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System saves the material usage entry in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Material Usage Logging",
+          "Input a valid procedure or patient name on the search bar",
+          "Input a valid procedure or patient name on the search bar",
+          "System searches the database and displays matching material usage logs",
+          "",
+          "PASSED"
+        ],
+        [
+          "Material Usage Logging",
+          "Click Start Date and End Date filter",
+          "Click Start Date and End Date filter",
+          "Displays the material usage logs from the selected start date up to the selected end date",
+          "",
+          "PASSED"
+        ],
+        [
+          "AI-Assisted Radiograph Review",
+          "Click a Radiograph Image",
+          "Click a Radiograph Image",
+          "Displays the radiograph image",
+          "",
+          "PASSED"
+        ],
+        [
+          "AI-Assisted Radiograph Review",
+          "Click Adaptive Enhancement button",
+          "Click Adaptive Enhancement button",
+          "System enhances the selected radiograph image and displays a success message",
+          "",
+          ""
+        ],
+        [
+          "AI-Assisted Radiograph Review",
+          "Click Enhanced button",
+          "Click Enhanced button",
+          "Displays the enhanced radiograph image",
+          "",
+          ""
+        ],
+        [
+          "AI-Assisted Radiograph Review",
+          "Click Original button",
+          "Click Original button",
+          "Displays the original radiograph image",
+          "",
+          ""
+        ],
+        [
+          "AI-Assisted Radiograph Review",
+          "Click Generate Summary",
+          "Click Generate Summary",
+          "System generates an AI summary for the radiograph",
+          "",
+          ""
+        ],
+        [
+          "AI-Assisted Radiograph Review",
+          "Click Summary tab",
+          "Click Summary tab",
+          "Displays the radiograph review summary",
+          "",
+          ""
+        ],
+        [
+          "AI-Assisted Radiograph Review",
+          "Click the manual review checkbox, then click Approve summary button",
+          "Click the manual review checkbox, then click Approve summary button",
+          "System approves the radiograph review summary and displays the approved summary",
+          "",
+          ""
+        ],
+        [
+          "AI-Assisted Radiograph Review",
+          "Input valid radiograph findings, then click Save dentist finding button",
+          "Input valid radiograph findings, then click Save dentist finding button",
+          "System saves the dentist finding and displays it in the Active findings list",
+          "",
+          ""
+        ],
+        [
+          "Branch Management and Expansion Analytics",
+          "Click Branches from the sidebar",
+          "Click Branches from the sidebar",
+          "Displays the clinic branches list",
+          "",
+          "PASSED"
+        ],
+        [
+          "Branch Management and Expansion Analytics",
+          "Click View Individual Branch Details",
+          "Click View Individual Branch Details",
+          "Displays the selected branch analytics",
+          "",
+          "PASSED"
+        ],
+        [
+          "Branch Management and Expansion Analytics",
+          "Click Edit Branch Details",
+          "Click Edit Branch Details",
+          "Displays the edit branch details form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Branch Management and Expansion Analytics",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the branch details in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring",
+          "Click Inventory from the sidebar",
+          "Click Inventory from the sidebar",
+          "Displays the Supply and Stock Monitoring page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring",
+          "Click View Item Categories List",
+          "Click View Item Categories List",
+          "Displays the item categories list",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring/\nUpdate Item Stock Quantity",
+          "Click Receive stock button",
+          "Click Receive stock button",
+          "Displays the Receive Stock form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring/\nUpdate Item Stock Quantity",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the item stock quantity information in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring/\nAdd New Supply Entry",
+          "Click Add New Item button",
+          "Click Add New Item button",
+          "Displays the Add New Item form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring/\nAdd New Supply Entry",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System saves the supply entry information in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring/\nEdit Item Details",
+          "Click Edit item button",
+          "Click Edit item button",
+          "Displays the Edit Inventory Item form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring/\nEdit Item Details",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the item details information in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring",
+          "Input a valid item name, category, stock-in number, brand, or batch number in the search field",
+          "Input a valid item name, category, stock-in number, brand, or batch number in the search field",
+          "System searches the database and displays matching supply items",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring",
+          "Click the In Stock, Low Stock, or Out of Stock filter",
+          "Click the In Stock, Low Stock, or Out of Stock filter",
+          "Displays supply items with the selected stock status",
+          "",
+          ""
+        ],
+        [
+          "Branch Transfer Management",
+          "Click Transfer Branch button on selected patient",
+          "Click Transfer Branch button on selected patient",
+          "Display branch transfer form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Branch Transfer Management",
+          "Select a valid destination branch, input a valid transfer reason, then click Confirm Transfer button",
+          "Select a valid destination branch, input a valid transfer reason, then click Confirm Transfer button",
+          "System transfers the selected patient to the destination branch and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Notifications",
+          "Click Notifications from the sidebar",
+          "Click Notifications from the sidebar",
+          "Displays the Notifications page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Activity Logs",
+          "Click Activity Logs from the sidebar",
+          "Click Activity Logs from the sidebar",
+          "Displays the Activity Logs page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nView Profile",
+          "Click My Profile from the sidebar",
+          "Click My Profile from the sidebar",
+          "Displays the user profile information",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nEdit Profile",
+          "Click Edit Profile button",
+          "Click Edit Profile button",
+          "Displays the edit profile form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nEdit Profile",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the profile information in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nChange Password",
+          "Click Change Password tab",
+          "Click Change Password tab",
+          "Displays the Change Password page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nChange Password",
+          "Input the correct current password, new password, and confirm new password, then click Save button",
+          "Input the correct current password, new password, and confirm new password, then click Save button",
+          "System updates the password in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Sign out",
+          "Click Logout from the sidebar",
+          "Click Logout from the sidebar",
+          "System logs the user out and displays the Login page",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 6,
+      "type": "table",
+      "rows": [
+        [
+          "INTEGRATION TEST DOCUMENT",
+          "INTEGRATION TEST DOCUMENT",
+          "Application/System Name",
+          "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMENT FOR DENTIME DENTAL CLINIC",
+          "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMENT FOR DENTIME DENTAL CLINIC",
+          "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMENT FOR DENTIME DENTAL CLINIC"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "User/Access Type",
+          "Branch Manager",
+          "Branch Manager",
+          "Branch Manager"
+        ],
+        [
+          "Date Tested",
+          "08/25/2026",
+          "Type of System",
+          "Web Application",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-conditions",
+          "Open the browser",
+          "Open the browser",
+          "Open the browser",
+          "Open the browser",
+          "Open the browser"
+        ],
+        [
+          "Verification Steps",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors"
+        ],
+        [
+          "Modules",
+          "Action Description",
+          "Action Description",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "Login",
+          "Enter the correct URL",
+          "Enter the correct URL",
+          "Displays the Login page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Click Forgot Password button",
+          "Click Forgot Password button",
+          "Displays the Forgot Password Page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Click Back to Login button",
+          "Click Back to Login button",
+          "Displays the Login Page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Input correct registered email, then click Send Code button",
+          "Input correct registered email, then click Send Code button",
+          "System verifies the email and redirects to the OTP page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Input the correct OTP, then click ENTER button",
+          "Input the correct OTP, then click ENTER button",
+          "System verifies the OTP and redirects to the reset password page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Input correct new password format matched with confirm new password, then click Reset Password button",
+          "Input correct new password format matched with confirm new password, then click Reset Password button",
+          "System updates the password in the database and redirects to the login page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login",
+          "Enter the correct email and password, then click Login button",
+          "Enter the correct email and password, then click Login button",
+          "System verifies the account and displays the branch manager dashboard",
+          "",
+          "PASSED"
+        ],
+        [
+          "Dashboard",
+          "Click the Dashboard from the sidebar",
+          "Click the Dashboard from the sidebar",
+          "Displays the dashboard summary",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management",
+          "Click Schedule from the sidebar",
+          "Click Schedule from the sidebar",
+          "Displays the schedule list",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management",
+          "Click View Schedule details",
+          "Click View Schedule details",
+          "Displays the selected schedule details",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management/\nEdit Schedule Details",
+          "Click Edit Schedule Details button",
+          "Click Edit Schedule Details button",
+          "Displays the edit schedule",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management/\nEdit Schedule Details",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the schedule details information in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management/\nApprove Schedule Entry",
+          "Click Confirm Appointment button",
+          "Click Confirm Appointment button",
+          "System confirms the appointment and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management/\nReject Schedule Entry",
+          "Click Cancel Appointment button",
+          "Click Cancel Appointment button",
+          "System rejects the appointment and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "User Accounts Management/\nSearch User Accounts",
+          "Input a valid name or email",
+          "Input a valid name or email",
+          "System searches the database and displays the matching user accounts",
+          "",
+          "PASSED"
+        ],
+        [
+          "User Accounts Management/\nCreate User Account",
+          "Click Add button",
+          "Click Add button",
+          "Displays the create user account form",
+          "",
+          "PASSED"
+        ],
+        [
+          "User Accounts Management/\nCreate User Account",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System saves the user account information in the database and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "User Accounts Management/\nEdit Use Account Details",
+          "Click Edit button",
+          "Click Edit button",
+          "Displays the edit user account form",
+          "",
+          "PASSED"
+        ],
+        [
+          "User Accounts Management/\nEdit Use Account Details",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the user account information in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "User Accounts Management/\nDeactivate User Account",
+          "Click Deactivate User Account button",
+          "Click Deactivate User Account button",
+          "System deactivates the user account, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "User Accounts Management/\nArchive User Account",
+          "Click Archive User Account button",
+          "Click Archive User Account button",
+          "System archives the user account, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nPatient Profile",
+          "Click Patient Profile tab",
+          "Click Patient Profile tab",
+          "Displays the selected patient profile",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nMedical and Dental History",
+          "Click Medical and Dental History tab",
+          "Click Medical and Dental History tab",
+          "Displays the selected patient medical and dental history",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nTreatment History",
+          "Click Treatment History tab",
+          "Click Treatment History tab",
+          "Displays the selected patient treatment history",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nTreatment History",
+          "Click View Treatment Notes",
+          "Click View Treatment Notes",
+          "Displays the selected treatment notes",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nDigital Odontogram",
+          "Click Odontogram tab",
+          "Click Odontogram tab",
+          "Displays the selected patient digital odontogram",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nRadiograph",
+          "Click Radiograph tab",
+          "Click Radiograph tab",
+          "Displays the selected patient X-ray",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nRadiograph",
+          "Click X-ray Images",
+          "Click X-ray Images",
+          "Display the X-ray summary notes",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring",
+          "Click Inventory from the sidebar",
+          "Click Inventory from the sidebar",
+          "Displays the Supply and Stock Monitoring page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring",
+          "Click View Item Categories List",
+          "Click View Item Categories List",
+          "Displays the item categories list",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring/\nUpdate Item Stock Quantity",
+          "Click Receive stock button",
+          "Click Receive stock button",
+          "Displays the Receive Stock form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring/\nUpdate Item Stock Quantity",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the item stock quantity information in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring/\nAdd New Supply Entry",
+          "Click Add New Item button",
+          "Click Add New Item button",
+          "Displays the Add New Item form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring/\nAdd New Supply Entry",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System saves the supply entry information in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring/\nEdit Item Details",
+          "Click Edit item button",
+          "Click Edit item button",
+          "Displays the Edit Inventory Item form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring/\nEdit Item Details",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the item details information in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring",
+          "Input a valid item name, category, stock-in number, brand, or batch number in the search field",
+          "Input a valid item name, category, stock-in number, brand, or batch number in the search field",
+          "System searches the database and displays matching supply items",
+          "",
+          "PASSED"
+        ],
+        [
+          "Supply and Stock Monitoring",
+          "Click the In Stock, Low Stock, or Out of Stock filter",
+          "Click the In Stock, Low Stock, or Out of Stock filter",
+          "Displays supply items with the selected stock status",
+          "",
+          ""
+        ],
+        [
+          "Branch Transfer Management",
+          "Click Transfer Branch button on selected patient",
+          "Click Transfer Branch button on selected patient",
+          "Display branch transfer form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Branch Transfer Management",
+          "Select a valid destination branch, input a valid transfer reason, then click Confirm Transfer button",
+          "Select a valid destination branch, input a valid transfer reason, then click Confirm Transfer button",
+          "System transfers the selected patient to the destination branch and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Notifications",
+          "Click Notifications from the sidebar",
+          "Click Notifications from the sidebar",
+          "Displays the Notifications page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Activity Logs",
+          "Click Activity Logs from the sidebar",
+          "Click Activity Logs from the sidebar",
+          "Displays the Activity Logs page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nView Profile",
+          "Click My Profile from the sidebar",
+          "Click My Profile from the sidebar",
+          "Displays the user profile information",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nEdit Profile",
+          "Click Edit Profile button",
+          "Click Edit Profile button",
+          "Displays the edit profile form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nEdit Profile",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the profile information in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nChange Password",
+          "Click Change Password tab",
+          "Click Change Password tab",
+          "Displays the Change Password page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nChange Password",
+          "Input the correct current password, new password, and confirm new password, then click Save button",
+          "Input the correct current password, new password, and confirm new password, then click Save button",
+          "System updates the password in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Sign out",
+          "Click Logout from the sidebar",
+          "Click Logout from the sidebar",
+          "System logs the user out and displays the Login page",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 8,
+      "type": "table",
+      "rows": [
+        [
+          "INTEGRATION TEST DOCUMENT",
+          "INTEGRATION TEST DOCUMENT",
+          "Application/System Name",
+          "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMENT FOR DENTIME DENTAL CLINIC",
+          "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMENT FOR DENTIME DENTAL CLINIC",
+          "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMENT FOR DENTIME DENTAL CLINIC"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "User/Access Type",
+          "Dentist",
+          "Dentist",
+          "Dentist"
+        ],
+        [
+          "Date Tested",
+          "08/25/2026",
+          "Type of System",
+          "Web Application",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-conditions",
+          "Open the browser",
+          "Open the browser",
+          "Open the browser",
+          "Open the browser",
+          "Open the browser"
+        ],
+        [
+          "Verification Steps",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors"
+        ],
+        [
+          "Modules",
+          "Action Description",
+          "Action Description",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "Login",
+          "Enter the correct URL",
+          "Enter the correct URL",
+          "Displays the Login page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Click Forgot Password button",
+          "Click Forgot Password button",
+          "Displays the Forgot Password Page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Click Back to Login button",
+          "Click Back to Login button",
+          "Displays the Login Page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Input correct registered email, then click Send Code button",
+          "Input correct registered email, then click Send Code button",
+          "System verifies the email and redirects to the OTP page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Input the correct OTP, then click ENTER button",
+          "Input the correct OTP, then click ENTER button",
+          "System verifies the OTP and redirects to the reset password page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Input correct new password format matched with confirm new password, then click Reset Password button",
+          "Input correct new password format matched with confirm new password, then click Reset Password button",
+          "System updates the password in the database and redirects to the login page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login",
+          "Enter the correct email and password, then click Login button",
+          "Enter the correct email and password, then click Login button",
+          "System verifies the account and displays the dentist dashboard",
+          "",
+          "PASSED"
+        ],
+        [
+          "Dashboard",
+          "Click the Dashboard from the sidebar",
+          "Click the Dashboard from the sidebar",
+          "Displays the dashboard summary",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management",
+          "Click Schedule from the sidebar",
+          "Click Schedule from the sidebar",
+          "Displays the schedule list",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management",
+          "Click View Schedule details",
+          "Click View Schedule details",
+          "Displays the selected schedule details",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nPatient Profile",
+          "Click Patient Profile tab",
+          "Click Patient Profile tab",
+          "Displays the selected patient profile",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nMedical and Dental History",
+          "Click Medical and Dental History tab",
+          "Click Medical and Dental History tab",
+          "Displays the selected patient medical and dental history",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nTreatment History",
+          "Click Treatment History tab",
+          "Click Treatment History tab",
+          "Displays the selected patient treatment history",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nTreatment History",
+          "Click Add New Log button",
+          "Click Add New Log button",
+          "Displays the add new log form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nTreatment History",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System saves the treatment log in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nTreatment History",
+          "Click Edit Log button",
+          "Click Edit Log button",
+          "Displays the edit log form",
+          "",
+          ""
+        ],
+        [
+          "Patient EMR/\nTreatment History",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the treatment log in the database, and displays a success message",
+          "",
+          ""
+        ],
+        [
+          "Patient EMR/\nTreatment History",
+          "Click Delete Log button",
+          "Click Delete Log button",
+          "System deletes the treatment log in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nDigital Odontogram",
+          "Click Odontogram tab",
+          "Click Odontogram tab",
+          "Displays the selected patient digital odontogram",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nDigital Odontogram",
+          "Click Edit Odontogram button",
+          "Click Edit Odontogram button",
+          "Displays the edit odontogram form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nDigital Odontogram",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the odontogram in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nRadiograph",
+          "Click Radiograph tab",
+          "Click Radiograph tab",
+          "Displays the selected patient X-ray",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nRadiograph",
+          "Click X-ray Images",
+          "Click X-ray Images",
+          "Display the X-ray summary notes",
+          "",
+          "PASSED"
+        ],
+        [
+          "Material Usage Logging",
+          "Click Material Usage Log from the sidebar",
+          "Click Material Usage Log from the sidebar",
+          "Displays the Material Usage Log page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Material Usage Logging",
+          "Click Log New Entry button",
+          "Click Log New Entry button",
+          "Displays the material usage entry form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Material Usage Logging",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System saves the material usage entry in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Material Usage Logging",
+          "Input a valid procedure or patient name on the search bar",
+          "Input a valid procedure or patient name on the search bar",
+          "System searches the database and displays matching material usage logs",
+          "",
+          "PASSED"
+        ],
+        [
+          "Material Usage Logging",
+          "Click Start Date and End Date filter",
+          "Click Start Date and End Date filter",
+          "Displays the material usage logs from the selected start date up to the selected end date",
+          "",
+          "PASSED"
+        ],
+        [
+          "AI-Assisted Radiograph Review",
+          "Click a Radiograph Image",
+          "Click a Radiograph Image",
+          "Displays the radiograph image",
+          "",
+          "PASSED"
+        ],
+        [
+          "AI-Assisted Radiograph Review",
+          "Click Adaptive Enhancement button",
+          "Click Adaptive Enhancement button",
+          "System enhances the selected radiograph image and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "AI-Assisted Radiograph Review",
+          "Click Enhanced button",
+          "Click Enhanced button",
+          "Displays the enhanced radiograph image",
+          "",
+          "PASSED"
+        ],
+        [
+          "AI-Assisted Radiograph Review",
+          "Click Original button",
+          "Click Original button",
+          "Displays the original radiograph image",
+          "",
+          "PASSED"
+        ],
+        [
+          "AI-Assisted Radiograph Review",
+          "Click Generate Summary",
+          "Click Generate Summary",
+          "System generates an AI summary for the radiograph",
+          "",
+          "PASSED"
+        ],
+        [
+          "AI-Assisted Radiograph Review",
+          "Click Summary tab",
+          "Click Summary tab",
+          "Displays the radiograph review summary",
+          "",
+          "PASSED"
+        ],
+        [
+          "AI-Assisted Radiograph Review",
+          "Click the manual review checkbox, then click Approve summary button",
+          "Click the manual review checkbox, then click Approve summary button",
+          "System approves the radiograph review summary and displays the approved summary",
+          "",
+          "PASSED"
+        ],
+        [
+          "AI-Assisted Radiograph Review",
+          "Input valid radiograph findings, then click Save dentist finding button",
+          "Input valid radiograph findings, then click Save dentist finding button",
+          "System saves the dentist finding and displays it in the Active findings list",
+          "",
+          "PASSED"
+        ],
+        [
+          "Notifications",
+          "Click Notifications from the sidebar",
+          "Click Notifications from the sidebar",
+          "Displays the Notifications page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Activity Logs",
+          "Click Activity Logs from the sidebar",
+          "Click Activity Logs from the sidebar",
+          "Displays the Activity Logs page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nView Profile",
+          "Click My Profile from the sidebar",
+          "Click My Profile from the sidebar",
+          "Displays the user profile information",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nEdit Profile",
+          "Click Edit Profile button",
+          "Click Edit Profile button",
+          "Displays the edit profile form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nEdit Profile",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the profile information in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nChange Password",
+          "Click Change Password tab",
+          "Click Change Password tab",
+          "Displays the Change Password page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nChange Password",
+          "Input the correct current password, new password, and confirm new password, then click Save button",
+          "Input the correct current password, new password, and confirm new password, then click Save button",
+          "System updates the password in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Sign out",
+          "Click Logout from the sidebar",
+          "Click Logout from the sidebar",
+          "System logs the user out and displays the Login page",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 10,
+      "type": "table",
+      "rows": [
+        [
+          "INTEGRATION TEST DOCUMENT",
+          "INTEGRATION TEST DOCUMENT",
+          "Application/System Name",
+          "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMENT FOR DENTIME DENTAL CLINIC",
+          "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMENT FOR DENTIME DENTAL CLINIC",
+          "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMENT FOR DENTIME DENTAL CLINIC"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "User/Access Type",
+          "Secretary",
+          "Secretary",
+          "Secretary"
+        ],
+        [
+          "Date Tested",
+          "08/25/2026",
+          "Type of System",
+          "Web Application",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-conditions",
+          "Open the browser",
+          "Open the browser",
+          "Open the browser",
+          "Open the browser",
+          "Open the browser"
+        ],
+        [
+          "Verification Steps",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors"
+        ],
+        [
+          "Modules",
+          "Action Description",
+          "Action Description",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "Login",
+          "Enter the correct URL",
+          "Enter the correct URL",
+          "Displays the Login page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Click Forgot Password button",
+          "Click Forgot Password button",
+          "Displays the Forgot Password Page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Click Back to Login button",
+          "Click Back to Login button",
+          "Displays the Login Page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Input correct registered email, then click Send Code button",
+          "Input correct registered email, then click Send Code button",
+          "System verifies the email and redirects to the OTP page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Input the correct OTP, then click ENTER button",
+          "Input the correct OTP, then click ENTER button",
+          "System verifies the OTP and redirects to the reset password page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Input correct new password format matched with confirm new password, then click Reset Password button",
+          "Input correct new password format matched with confirm new password, then click Reset Password button",
+          "System updates the password in the database and redirects to the login page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login",
+          "Enter the correct email and password, then click Login button",
+          "Enter the correct email and password, then click Login button",
+          "System verifies the account and displays the secretary dashboard",
+          "",
+          "PASSED"
+        ],
+        [
+          "Dashboard",
+          "Click the Dashboard from the sidebar",
+          "Click the Dashboard from the sidebar",
+          "Displays the dashboard summary",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management",
+          "Click Schedule from the sidebar",
+          "Click Schedule from the sidebar",
+          "Displays the schedule list",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management",
+          "Click View Schedule details",
+          "Click View Schedule details",
+          "Displays the selected schedule details",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management/\nEdit Schedule Details",
+          "Click Edit Schedule Details button",
+          "Click Edit Schedule Details button",
+          "Displays the edit schedule",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management/\nEdit Schedule Details",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the schedule details information in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management/\nApprove Schedule Entry",
+          "Click Confirm Appointment button",
+          "Click Confirm Appointment button",
+          "System confirms the appointment and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Schedule Management/\nReject Schedule Entry",
+          "Click Cancel Appointment button",
+          "Click Cancel Appointment button",
+          "System rejects the appointment and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient Registration",
+          "Click Register New Patient button",
+          "Click Register New Patient button",
+          "Displays the create patient account form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient Registration",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System saves the patient account information in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nPatient Profile",
+          "Click Patient Profile tab",
+          "Click Patient Profile tab",
+          "Displays the selected patient profile",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nMedical and Dental History",
+          "Click Medical and Dental History tab",
+          "Click Medical and Dental History tab",
+          "Displays the selected patient medical and dental history",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nTreatment History",
+          "Click Treatment History tab",
+          "Click Treatment History tab",
+          "Displays the selected patient treatment history",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nTreatment History",
+          "Click View Treatment Notes",
+          "Click View Treatment Notes",
+          "Displays the selected treatment notes",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nDigital Odontogram",
+          "Click Odontogram tab",
+          "Click Odontogram tab",
+          "Displays the selected patient digital odontogram",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nRadiograph",
+          "Click Radiograph tab",
+          "Click Radiograph tab",
+          "Displays the selected patient X-ray",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nRadiograph",
+          "Click X-ray Images",
+          "Click X-ray Images",
+          "Display the X-ray summary notes",
+          "",
+          "PASSED"
+        ],
+        [
+          "Notifications",
+          "Click Notifications from the sidebar",
+          "Click Notifications from the sidebar",
+          "Displays the Notifications page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Activity Logs",
+          "Click Activity Logs from the sidebar",
+          "Click Activity Logs from the sidebar",
+          "Displays the Activity Logs page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nView Profile",
+          "Click My Profile from the sidebar",
+          "Click My Profile from the sidebar",
+          "Displays the user profile information",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nEdit Profile",
+          "Click Edit Profile button",
+          "Click Edit Profile button",
+          "Displays the edit profile form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nEdit Profile",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the profile information in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nChange Password",
+          "Click Change Password tab",
+          "Click Change Password tab",
+          "Displays the Change Password page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nChange Password",
+          "Input the correct current password, new password, and confirm new password, then click Save button",
+          "Input the correct current password, new password, and confirm new password, then click Save button",
+          "System updates the password in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Sign out",
+          "Click Logout from the sidebar",
+          "Click Logout from the sidebar",
+          "System logs the user out and displays the Login page",
+          "",
+          "PASSED"
+        ]
+      ]
+    },
+    {
+      "index": 12,
+      "type": "table",
+      "rows": [
+        [
+          "INTEGRATION TEST DOCUMENT",
+          "INTEGRATION TEST DOCUMENT",
+          "Application/System Name",
+          "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMENT FOR DENTIME DENTAL CLINIC",
+          "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMENT FOR DENTIME DENTAL CLINIC",
+          "NGITIFY: A DENTAL INFORMATION MANAGEMENT SYSTEM WITH AI-DRIVEN PATIENT ENGAGEMENT FOR DENTIME DENTAL CLINIC"
+        ],
+        [
+          "Test Cycle No.",
+          "1",
+          "User/Access Type",
+          "Patient",
+          "Patient",
+          "Patient"
+        ],
+        [
+          "Date Tested",
+          "08/25/2026",
+          "Type of System",
+          "Web Application",
+          "Web Application",
+          "Web Application"
+        ],
+        [
+          "Pre-conditions",
+          "Open the browser",
+          "Open the browser",
+          "Open the browser",
+          "Open the browser",
+          "Open the browser"
+        ],
+        [
+          "Verification Steps",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors",
+          "Enter the correct URL, functions are working with no errors"
+        ],
+        [
+          "Modules",
+          "Action Description",
+          "Action Description",
+          "Expected Results",
+          "Actual Results",
+          "Remarks"
+        ],
+        [
+          "Website Booking",
+          "Click Appointment tab",
+          "Click Appointment tab",
+          "Displays the website appointment booking form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Website Booking",
+          "Input all appointment fields completely and in the correct format, then click Book Appointment button",
+          "Input all appointment fields completely and in the correct format, then click Book Appointment button",
+          "System saves the website booking in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login",
+          "Enter the correct URL",
+          "Enter the correct URL",
+          "Displays the Login page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Click Forgot Password button",
+          "Click Forgot Password button",
+          "Displays the Forgot Password Page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Click Back to Login button",
+          "Click Back to Login button",
+          "Displays the Login Page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Input correct registered email, then click Send Code button",
+          "Input correct registered email, then click Send Code button",
+          "System verifies the email and redirects to the OTP page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Input the correct OTP, then click ENTER button",
+          "Input the correct OTP, then click ENTER button",
+          "System verifies the OTP and redirects to the reset password page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Forgot Password",
+          "Input correct new password format matched with confirm new password, then click Reset Password button",
+          "Input correct new password format matched with confirm new password, then click Reset Password button",
+          "System updates the password in the database and redirects to the login page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login",
+          "Enter the correct email and password, then click Login button",
+          "Enter the correct email and password, then click Login button",
+          "System verifies the account and displays the patient dashboard",
+          "",
+          "PASSED"
+        ],
+        [
+          "Dashboard",
+          "Click the Dashboard from the sidebar",
+          "Click the Dashboard from the sidebar",
+          "Displays the dashboard summary",
+          "",
+          "PASSED"
+        ],
+        [
+          "Appointment Scheduling",
+          "Click Book Appointment button",
+          "Click Book Appointment button",
+          "Displays the appointment booking form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Appointment Scheduling",
+          "Input all appointment fields completely and in the correct format, then click Book Appointment button",
+          "Input all appointment fields completely and in the correct format, then click Book Appointment button",
+          "System saves the appointment in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Appointment Scheduling",
+          "Click Reschedule Appointment button",
+          "Click Reschedule Appointment button",
+          "Displays the appointment rescheduling form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Appointment Scheduling",
+          "Select the new appointment date and time, then click Confirm Reschedule button",
+          "Select the new appointment date and time, then click Confirm Reschedule button",
+          "System updates the appointment schedule in the database and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Appointment Scheduling",
+          "Click Cancel Appointment button",
+          "Click Cancel Appointment button",
+          "Displays the appointment cancellation form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Appointment Scheduling",
+          "Input a valid cancellation reason, then click Confirm Cancellation button",
+          "Input a valid cancellation reason, then click Confirm Cancellation button",
+          "System cancels the appointment in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nPatient Profile",
+          "Click Patient Profile tab",
+          "Click Patient Profile tab",
+          "Displays the selected patient profile",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nMedical and Dental History",
+          "Click Medical and Dental History tab",
+          "Click Medical and Dental History tab",
+          "Displays the selected patient medical and dental history",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nTreatment History",
+          "Click Treatment History tab",
+          "Click Treatment History tab",
+          "Displays the selected patient treatment history",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nTreatment History",
+          "Click View Treatment Notes",
+          "Click View Treatment Notes",
+          "Displays the selected treatment notes",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nDigital Odontogram",
+          "Click Odontogram tab",
+          "Click Odontogram tab",
+          "Displays the selected patient digital odontogram",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nRadiograph",
+          "Click Radiograph tab",
+          "Click Radiograph tab",
+          "Displays the selected patient X-ray",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR/\nRadiograph",
+          "Click X-ray Images",
+          "Click X-ray Images",
+          "Display the X-ray summary notes",
+          "",
+          "PASSED"
+        ],
+        [
+          "Patient EMR",
+          "Click Export PDF button",
+          "Click Export PDF button",
+          "System downloads the patient profile PDF",
+          "",
+          "PASSED"
+        ],
+        [
+          "AI Patient Engagement/\nNgitiBot",
+          "Click NgitiBot floating button",
+          "Click NgitiBot floating button",
+          "Displays the NgitiBot conversation window",
+          "",
+          "PASSED"
+        ],
+        [
+          "AI Patient Engagement/\nNgitiBot",
+          "Input a patient care question, then click Send button",
+          "Input a patient care question, then click Send button",
+          "System processes the question and displays the NgitiBot response",
+          "",
+          "PASSED"
+        ],
+        [
+          "AI Patient Engagement/\nDental Health Education",
+          "Click Dental Health Education button",
+          "Click Dental Health Education button",
+          "Displays the dental health educational materials",
+          "",
+          "PASSED"
+        ],
+        [
+          "AI Patient Engagement/\nOral Health Management",
+          "Click Oral Health Management button",
+          "Click Oral Health Management button",
+          "Displays the Oral Health Management page",
+          "",
+          "PASSED"
+        ],
+        [
+          "AI Patient Engagement/\nOral Health Management",
+          "Click Log Today button",
+          "Click Log Today button",
+          "Displays the log today form",
+          "",
+          "PASSED"
+        ],
+        [
+          "AI Patient Engagement/\nOral Health Management",
+          "Input the daily log, then click Add Daily Log button",
+          "Input the daily log, then click Add Daily Log button",
+          "System saves the daily log in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "AI Patient Engagement/\nPredictive Visit",
+          "Click View Predictive Visit button",
+          "Click View Predictive Visit button",
+          "Displays the dentist-recommended visit or AI-generated recommendations for the next visit",
+          "",
+          "PASSED"
+        ],
+        [
+          "Notifications",
+          "Click Notifications from the sidebar",
+          "Click Notifications from the sidebar",
+          "Displays the Notifications page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Activity Logs",
+          "Click Activity Logs from the sidebar",
+          "Click Activity Logs from the sidebar",
+          "Displays the Activity Logs page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nView Profile",
+          "Click My Profile from the sidebar",
+          "Click My Profile from the sidebar",
+          "Displays the user profile information",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nEdit Profile",
+          "Click Edit Profile button",
+          "Click Edit Profile button",
+          "Displays the edit profile form",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nEdit Profile",
+          "Input all fields completely and in the correct format, then click Save button",
+          "Input all fields completely and in the correct format, then click Save button",
+          "System updates the profile information in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nChange Password",
+          "Click Change Password tab",
+          "Click Change Password tab",
+          "Displays the Change Password page",
+          "",
+          "PASSED"
+        ],
+        [
+          "Account Settings/\nChange Password",
+          "Input the correct current password, new password, and confirm new password, then click Save button",
+          "Input the correct current password, new password, and confirm new password, then click Save button",
+          "System updates the password in the database, and displays a success message",
+          "",
+          "PASSED"
+        ],
+        [
+          "Login/Sign out",
+          "Click Logout from the sidebar",
+          "Click Logout from the sidebar",
+          "System logs the user out and displays the Login page",
+          "",
+          "PASSED"
+        ]
+      ]
+    }
+  ]
+}

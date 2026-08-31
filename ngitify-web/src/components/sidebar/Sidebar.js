@@ -309,9 +309,10 @@ export default function Sidebar() {
                         <>
                             {sectionLabel('Clinic')}
                             {navItem(schedulePath, FaCalendarAlt, 'Schedule')}
+                            {isOwner && user?.isDentist === true && navItem('/owner/my-schedule', FaCalendarAlt, 'My Schedule')}
                             {sectionLabel('Patients')}
                             {(isAdmin || isOwner || isBranchManager || isSecretary || isDentistUser) && navItem(managePatientsPath, FaUserInjured, 'Manage Patients')}
-                            {isOwner && user?.isDentist === true && navItem('/owner/my-patients', FaNotesMedical, 'My Patient')}
+                            {isOwner && user?.isDentist === true && navItem('/owner/my-patients', FaNotesMedical, 'My Patients')}
                         </>
                     )}
 

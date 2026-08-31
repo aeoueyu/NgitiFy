@@ -33,7 +33,7 @@ const getPatientRecoveryLabel = (patient = {}) => (
         : (!patient?.isVerified && !hasExpiredTemporaryPassword(patient) ? 'Resend Activation Link' : getAccessRecoveryLabel(patient))
 );
 
-export default function ManagePatients() {
+export default function ManagePatients({ patientScope = '', dentistExperience = false, title = 'Manage Patients' }) {
     const { user } = useAuth();
     const { canReadPatients, canEditPatients } = usePermissions();
 
@@ -43,7 +43,9 @@ export default function ManagePatients() {
     const { addToast } = useToast();
 
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState(user?.role === 'dentist' ? 'all' : 'active');
+    const [statusFilter, setStatusFilter] = useState(
+        user?.role === 'dentist' || dentistExperience ? 'all' : 'active'
+    );
     const [branchFilter, setBranchFilter] = useState('All');
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [page, setPage] = useState(1);
@@ -70,9 +72,10 @@ export default function ManagePatients() {
 
     const isSecretary = user?.role === 'secretary';
     const isDentist = user?.role === 'dentist';
+    const usesDentistExperience = isDentist || dentistExperience;
     const isBranchManager = user?.role === 'branch-manager';
     const isBranchScopedList = isSecretary || isBranchManager;
-    const canTransferPatientBranch = canEditPatients && !isDentist && ['administrator', 'owner', 'branch-manager', 'secretary'].includes(user?.role);
+    const canTransferPatientBranch = canEditPatients && !usesDentistExperience && ['administrator', 'owner', 'branch-manager', 'secretary'].includes(user?.role);
 
     useEffect(() => {
         if (location.state?.openAddModal && canEditPatients) {
@@ -96,7 +99,8 @@ export default function ManagePatients() {
     const fetchPatients = useCallback(async ({ silent = false } = {}) => {
         try {
             if (!silent) setIsLoading(true);
-            const response = await authFetch('/patients?includeArchived=true&limit=500&view=management');
+            const scopeQuery = patientScope ? `&scope=${encodeURIComponent(patientScope)}` : '';
+            const response = await authFetch(`/patients?includeArchived=true&limit=500&view=management${scopeQuery}`);
 
             if (response.ok) {
                 const data = await response.json();
@@ -132,7 +136,7 @@ export default function ManagePatients() {
         } finally {
             if (!silent) setIsLoading(false);
         }
-    }, []);
+    }, [patientScope]);
 
     useEffect(() => {
         if (canReadPatients) {
@@ -501,6 +505,10 @@ export default function ManagePatients() {
     const openPatientRecord = (id) => {
         if (!id) return;
 
+        if (dentistExperience && user?.role === 'owner') {
+            navigate(`/owner/my-patients/${id}/emr`);
+            return;
+        }
         if (user?.role === 'administrator') navigate(`/admin/patients/${id}/emr`);
         else if (user?.role === 'owner') navigate(`/owner/patients/${id}/emr`);
         else if (user?.role === 'branch-manager') navigate(`/branch-manager/patients/${id}/emr`);
@@ -562,8 +570,8 @@ export default function ManagePatients() {
         <div className={styles.container}>
             <header className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                    <h1 className={styles.title}>Manage Patients</h1>
-                    <p className={styles.subtitle}>{isDentist ? 'View your assigned patients and open their EMR records.' : 'View, filter, and manage clinic patient records.'}</p>
+                    <h1 className={styles.title}>{title}</h1>
+                    <p className={styles.subtitle}>{usesDentistExperience ? 'View your assigned patients and open their EMR records.' : 'View, filter, and manage clinic patient records.'}</p>
                 </div>
                 <div className={styles.headerActions}>
                     <button
@@ -582,7 +590,7 @@ export default function ManagePatients() {
                     >
                         <FaFilePdf /> Export PDF
                     </button>
-                    {canEditPatients && !isDentist && (
+                    {canEditPatients && !usesDentistExperience && (
                         <button
                             className={styles.addBtn}
                             onClick={() => setIsAddModalOpen(true)}
@@ -614,7 +622,7 @@ export default function ManagePatients() {
                         <button className={`${styles.filterPill} ${statusFilter === 'all' ? styles.activePill : ''}`} onClick={() => setStatusFilter('all')}>All</button>
                     </div>
 
-                    {!isBranchScopedList && !isDentist && (
+                    {!isBranchScopedList && !usesDentistExperience && (
                         <select
                             className={styles.filterSelect}
                             value={branchFilter}
@@ -707,7 +715,7 @@ export default function ManagePatients() {
                                     <td style={{ textAlign: 'center' }}>
                                         <div className={`${tblStyles.iconActions} ${styles.actionRow}`}>
                                             <button type="button" className={`${styles.actionIconButton} ${tblStyles.iconAction} ${styles.viewIconButton}`} onClick={() => handleViewClick(patient.id)} title="View Patient EMR"><FaEye /></button>
-                                            {canEditPatients && !isDentist && (
+                                            {canEditPatients && !usesDentistExperience && (
                                                 <>
                                                     <button
                                                         type="button"

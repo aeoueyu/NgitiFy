@@ -715,6 +715,7 @@ function MedicalHistoryTab({ profile, loading, error, onRetry }) {
     const allergies = Array.isArray(medicalHistory.allergies) ? medicalHistory.allergies : [];
     const conditions = Array.isArray(medicalHistory.conditions) ? medicalHistory.conditions : [];
     const medications = Array.isArray(medicalHistory.medications) ? medicalHistory.medications : [];
+    const isMalePatient = String(profile.gender || profile.sex || '').trim().toLowerCase() === 'male';
     const pairedRows = [
         ['Reason for Consultation', profile.reasonForConsultation || dentalHistory.chiefComplaint || 'Not specified'],
         ['Last Dental Visit', dentalHistory.lastExamDate ? fmtDate(dentalHistory.lastExamDate) : 'Not specified'],
@@ -776,9 +777,13 @@ function MedicalHistoryTab({ profile, loading, error, onRetry }) {
                     <View style={styles.detailCell}><Text style={styles.detailLabel}>Bleeding Time</Text><Text style={styles.detailValue}>{medicalHistory.bleedingTime || 'Not specified'}</Text></View>
                     <View style={styles.detailCell}><Text style={styles.detailLabel}>Blood Pressure</Text><Text style={styles.detailValue}>{medicalHistory.bloodPressure || 'Not specified'}</Text></View>
                     <View style={styles.detailCell}><Text style={styles.detailLabel}>Blood Type</Text><Text style={styles.detailValue}>{profile.bloodType || medicalHistory.bloodType || 'Not specified'}</Text></View>
-                    <View style={styles.detailCell}><Text style={styles.detailLabel}>Are You Pregnant?</Text><Text style={styles.detailValue}>{yesNoDisplay(medicalHistory.isPregnant)}</Text></View>
-                    <View style={styles.detailCell}><Text style={styles.detailLabel}>Are You Nursing?</Text><Text style={styles.detailValue}>{yesNoDisplay(medicalHistory.isNursing)}</Text></View>
-                    <View style={styles.detailCell}><Text style={styles.detailLabel}>Taking Birth Control Pills?</Text><Text style={styles.detailValue}>{yesNoDisplay(medicalHistory.takingBirthControl)}</Text></View>
+                    {!isMalePatient && (
+                        <>
+                            <View style={styles.detailCell}><Text style={styles.detailLabel}>Are You Pregnant?</Text><Text style={styles.detailValue}>{yesNoDisplay(medicalHistory.isPregnant)}</Text></View>
+                            <View style={styles.detailCell}><Text style={styles.detailLabel}>Are You Nursing?</Text><Text style={styles.detailValue}>{yesNoDisplay(medicalHistory.isNursing)}</Text></View>
+                            <View style={styles.detailCell}><Text style={styles.detailLabel}>Taking Birth Control Pills?</Text><Text style={styles.detailValue}>{yesNoDisplay(medicalHistory.takingBirthControl)}</Text></View>
+                        </>
+                    )}
                 </View>
 
                 <View style={styles.detailChecklistSection}>

@@ -1,0 +1,42 @@
+{
+  "output": "C:\\Users\\Administrator\\Desktop\\NGITIFY DENTIME\\output\\documents\\NGITIFY_Complete_Functional_Testing.docx",
+  "case_count": 95,
+  "scenario_count": 95,
+  "systems": {
+    "Web Application": 70,
+    "Mobile Application": 25
+  },
+  "modules": [
+    "ACCOUNT SETTINGS MODULE",
+    "ACTIVITY LOGS MODULE",
+    "AI PATIENT CARE COMPANION MODULE",
+    "AI PATIENT ENGAGEMENT MODULE",
+    "ARCHIVE REVIEW MODULE",
+    "BRANCH MANAGEMENT MODULE",
+    "DASHBOARD MODULE",
+    "DATABASE BACKUP MODULE",
+    "DENTAL HEALTH EDUCATION MODULE",
+    "INTEGRITY TOOLS MODULE",
+    "INVENTORY MANAGEMENT MODULE",
+    "LOGIN MODULE",
+    "MY EMR MODULE",
+    "NOTIFICATIONS MODULE",
+    "ORAL HEALTH MANAGEMENT MODULE",
+    "PATIENT APPOINTMENTS MODULE",
+    "PATIENT EMR MODULE",
+    "PATIENT MEDICAL RECORDS MODULE",
+    "PATIENT NOTIFICATIONS MODULE",
+    "REGISTRATION MODULE",
+    "SCHEDULE MANAGEMENT MODULE",
+    "SYSTEM AUDIT LOGS MODULE",
+    "SYSTEM CONFIGURATION MODULE",
+    "USER ACCOUNTS MANAGEMENT MODULE",
+    "WEBSITE ONLINE BOOKING MODULE"
+  ],
+  "excluded_fields": [
+    "Test Cycle No.",
+    "Date Tested",
+    "Actual Results",
+    "Remarks"
+  ]
+}
