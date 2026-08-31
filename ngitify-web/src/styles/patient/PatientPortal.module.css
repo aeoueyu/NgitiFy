@@ -1590,6 +1590,13 @@ button.toolCard:focus-visible {
     border-style: dashed;
 }
 
+.dateCellPast {
+    background: #f3f6f9;
+    color: #aebdca;
+    border-color: #dce5ec;
+    opacity: 0.72;
+}
+
 .dateCellSelected {
     background: var(--patient-primary);
     color: #ffffff;

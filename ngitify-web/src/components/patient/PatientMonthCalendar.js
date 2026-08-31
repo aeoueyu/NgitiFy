@@ -6,7 +6,7 @@ import styles from '../../styles/patient/PatientPortal.module.css';
 const DAY_NAMES = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const FULL_DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-const buildCalendarCells = (currentMonth, selectedDate, marks, disableSundays) => {
+const buildCalendarCells = (currentMonth, selectedDate, marks, disableSundays, minDate) => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
     const firstDay = new Date(year, month, 1).getDay();
@@ -17,11 +17,15 @@ const buildCalendarCells = (currentMonth, selectedDate, marks, disableSundays) =
 
     for (let index = firstDay - 1; index >= 0; index -= 1) {
         const date = new Date(year, month - 1, daysInPrevMonth - index);
+        const key = toDateKey(date);
+        const isPastDate = Boolean(minDate) && key < minDate;
         cells.push({
             date,
-            key: toDateKey(date),
+            key,
             label: daysInPrevMonth - index,
             muted: true,
+            disabled: isPastDate,
+            past: isPastDate,
         });
     }
 
@@ -29,12 +33,14 @@ const buildCalendarCells = (currentMonth, selectedDate, marks, disableSundays) =
         const date = new Date(year, month, day);
         const key = toDateKey(date);
         const mark = marks[key] || {};
+        const isPastDate = Boolean(minDate) && key < minDate;
         cells.push({
             date,
             key,
             label: day,
             selected: key === selectedKey || mark.selected,
-            disabled: Boolean(mark.disabled) || (disableSundays && date.getDay() === 0),
+            disabled: isPastDate || Boolean(mark.disabled) || (disableSundays && date.getDay() === 0),
+            past: isPastDate,
             accent: Boolean(mark.accent),
             highlight: Boolean(mark.highlight),
             dotColor: mark.dotColor || '',
@@ -46,11 +52,15 @@ const buildCalendarCells = (currentMonth, selectedDate, marks, disableSundays) =
     const extraCells = totalCells - cells.length;
     for (let day = 1; day <= extraCells; day += 1) {
         const date = new Date(year, month + 1, day);
+        const key = toDateKey(date);
+        const isPastDate = Boolean(minDate) && key < minDate;
         cells.push({
             date,
-            key: toDateKey(date),
+            key,
             label: day,
             muted: true,
+            disabled: isPastDate,
+            past: isPastDate,
         });
     }
 
@@ -62,15 +72,19 @@ export default function PatientMonthCalendar({
     selectedDate,
     marks = {},
     disableSundays = false,
+    minDate = '',
     onChangeMonth,
     onSelectDate,
 }) {
     const cells = useMemo(
-        () => buildCalendarCells(currentMonth, selectedDate, marks, disableSundays),
-        [currentMonth, marks, selectedDate, disableSundays]
+        () => buildCalendarCells(currentMonth, selectedDate, marks, disableSundays, minDate),
+        [currentMonth, marks, selectedDate, disableSundays, minDate]
     );
 
     const monthLabel = currentMonth.toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
+    const currentMonthKey = toDateKey(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)).slice(0, 7);
+    const minimumMonthKey = String(minDate || '').slice(0, 7);
+    const previousMonthDisabled = Boolean(minimumMonthKey) && currentMonthKey <= minimumMonthKey;
 
     return (
         <div className={styles.calendarShell} aria-label={`${monthLabel} calendar`}>
@@ -83,6 +97,7 @@ export default function PatientMonthCalendar({
                         type="button"
                         className={styles.calendarNavButton}
                         onClick={() => onChangeMonth(-1)}
+                        disabled={previousMonthDisabled}
                         aria-label={`Show previous month before ${monthLabel}`}
                     >
                         <FaChevronLeft aria-hidden="true" focusable="false" />
@@ -109,6 +124,7 @@ export default function PatientMonthCalendar({
                         styles.dateCell,
                         cell.muted ? styles.dateCellMuted : '',
                         cell.disabled ? styles.dateCellDisabled : '',
+                        cell.past ? styles.dateCellPast : '',
                         cell.selected ? styles.dateCellSelected : '',
                         cell.accent ? styles.dateCellAccent : '',
                         cell.highlight ? styles.dateCellHighlight : '',
@@ -124,6 +140,7 @@ export default function PatientMonthCalendar({
                         cell.selected ? 'selected' : '',
                         cell.highlight ? 'in recommended window' : '',
                         cell.accent ? 'important' : '',
+                        cell.past ? 'past date' : '',
                         cell.disabled ? 'unavailable' : '',
                         cell.metaLabel || '',
                     ].filter(Boolean);

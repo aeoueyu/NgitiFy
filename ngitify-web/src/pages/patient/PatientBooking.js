@@ -305,7 +305,10 @@ export default function PatientBooking({ onExit, hubNav }) {
     };
 
     const handleMonthChange = (direction) => {
-        setCurrentMonth((current) => new Date(current.getFullYear(), current.getMonth() + direction, 1));
+        setCurrentMonth((current) => {
+            const nextMonth = new Date(current.getFullYear(), current.getMonth() + direction, 1);
+            return toMonthKey(nextMonth) < todayKey.slice(0, 7) ? current : nextMonth;
+        });
     };
 
     const goNext = () => setStep((current) => Math.min(current + 1, STEP_LABELS.length));
@@ -514,7 +517,7 @@ export default function PatientBooking({ onExit, hubNav }) {
                                     <PatientSectionHeader
                                         eyebrow="Step 1"
                                         title="Select a date"
-                                        description="Sundays and fully booked dates are disabled. Calendar availability refreshes from live Dentime booking data."
+                                        description="Past dates, Sundays, and fully booked dates are disabled. Calendar availability refreshes from live Dentime booking data."
                                     />
                                     {loadingBlockedDates ? (
                                         <div className={styles.loaderBox}>
@@ -527,11 +530,13 @@ export default function PatientBooking({ onExit, hubNav }) {
                                                 selectedDate={selectedDate}
                                                 marks={marks}
                                                 disableSundays={true}
+                                                minDate={todayKey}
                                                 onChangeMonth={handleMonthChange}
                                                 onSelectDate={handleDateSelection}
                                             />
                                             <div className={styles.detailPills} style={{ marginTop: '18px' }}>
                                                 <span className={styles.detailPill}><FaInfoCircle /> Today is highlighted</span>
+                                                <span className={styles.detailPill}><FaCalendarAlt /> Past dates are disabled</span>
                                                 <span className={styles.detailPill}><FaCalendarAlt /> Full dates are marked in the calendar</span>
                                             </div>
                                         </>

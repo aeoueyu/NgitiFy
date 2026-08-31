@@ -547,6 +547,7 @@ test(
         const webSettingsSource = readRepositoryFile('ngitify-web/src/pages/patient/PatientSettings.js');
         const mobileSettingsSource = readRepositoryFile('ngitify-mobile/src/screens/shared/SettingsScreen.js');
         const webBookingSource = readRepositoryFile('ngitify-web/src/pages/patient/PatientBooking.js');
+        const webCalendarSource = readRepositoryFile('ngitify-web/src/components/patient/PatientMonthCalendar.js');
         const mobileBookingSource = readRepositoryFile('ngitify-mobile/src/screens/patient/AppointmentBookingScreen.js');
         const systemConfigSource = readRepositoryFile('ngitify-web/src/pages/admin/SystemConfig.js');
 
@@ -556,6 +557,10 @@ test(
         assert.match(webSettingsSource, /\/verify-current-password/);
         assert.match(mobileSettingsSource, /api\/verify-current-password/);
         assert.match(webBookingSource, /disabled=\{!privacySummaryViewed\}/);
+        assert.match(webBookingSource, /minDate=\{todayKey\}/);
+        assert.match(webBookingSource, /dateKey < todayKey/);
+        assert.match(webCalendarSource, /key < minDate/);
+        assert.match(webCalendarSource, /disabled=\{previousMonthDisabled\}/);
         assert.match(mobileBookingSource, /disabled=\{!privacySummaryViewed\}/);
         assert.match(systemConfigSource, /exceeds the 20 MB upload limit/);
         assert.match(systemConfigSource, /role="alert" aria-live="assertive"/);
