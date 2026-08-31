@@ -11,6 +11,7 @@ const Branch = require('../models/Branch');
 const Queue = require('../models/Queue');
 const InventoryItem = require('../models/InventoryItem');
 const InventoryBatch = require('../models/InventoryBatch');
+const { hasDentistClinicalAccess } = require('../utils/healthcareAccess');
 
 const Surgery = Appointment;
 
@@ -154,7 +155,7 @@ const analyzeAssignedDentist = (patient, dentistsById) => {
     if (assignedDentistId && !dentist) {
         issueTypes.push('Missing dentist account');
         safeUpdate = { assignedDentistId: null, assignedDentistName: '' };
-    } else if (dentist && dentist.role !== 'dentist') {
+    } else if (dentist && !hasDentistClinicalAccess(dentist)) {
         issueTypes.push('Referenced user is not a dentist');
         safeUpdate = { assignedDentistId: null, assignedDentistName: '' };
     } else if (dentist && dentist.isArchived) {
@@ -493,7 +494,7 @@ async function scanAssignedDentistMismatches() {
     const dentistIds = uniqueIds(patients.map((patient) => patient.assignedDentistId));
     const dentists = dentistIds.length > 0
         ? await User.find({ _id: { $in: dentistIds } })
-            .select('_id name email role status isArchived')
+            .select('_id name email role isDentist status isArchived')
             .lean()
         : [];
     const dentistsById = new Map(dentists.map((dentist) => [String(dentist._id), dentist]));

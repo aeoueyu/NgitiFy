@@ -564,31 +564,40 @@ function MaterialUsagePage() {
 
     return (
         <main className={styles.pageWrapper}>
-            <div className={styles.pageHeader}>
+            <header className={styles.pageHeader}>
                 <div>
                     <h1 className={styles.pageTitle}>Material Usage Log</h1>
                     <p className={styles.pageSubtitle}>Track and record dental supplies used during patient procedures.</p>
                 </div>
-                <button className={styles.saveMaterialBtn} onClick={() => setIsLogModalOpen(true)}>
-                    <FaPlus style={{ marginRight: '7px' }} /> Log New Entry
+                <button type="button" className={styles.saveMaterialBtn} onClick={() => setIsLogModalOpen(true)}>
+                    <FaPlus /> Log New Entry
                 </button>
-            </div>
+            </header>
 
             {/* STATS */}
             <div className={styles.statsRow}>
                 <div className={styles.statCard}>
-                    <p className={styles.statLabel}>Total Logs</p>
+                    <div className={styles.statHeader}>
+                        <p className={styles.statLabel}>Total Logs</p>
+                        <span className={`${styles.statIconWrapper} ${styles.statIconBlue}`}><FaClipboardList /></span>
+                    </div>
                     <h2 className={styles.statValue}>{logs.length}</h2>
                     <p className={styles.statSub}>All time entries</p>
                 </div>
                 <div className={styles.statCard}>
-                    <p className={styles.statLabel}>This Month</p>
+                    <div className={styles.statHeader}>
+                        <p className={styles.statLabel}>This Month</p>
+                        <span className={`${styles.statIconWrapper} ${styles.statIconCyan}`}><FaCalendarCheck /></span>
+                    </div>
                     <h2 className={styles.statValue}>{thisMonthCount}</h2>
                     <p className={styles.statSub}>{now.toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
                 </div>
                 <div className={styles.statCard}>
-                    <p className={styles.statLabel}>Most Used Item</p>
-                    <h2 className={styles.statValue} style={{ fontSize: '18px', marginTop: '6px' }}>
+                    <div className={styles.statHeader}>
+                        <p className={styles.statLabel}>Most Used Item</p>
+                        <span className={`${styles.statIconWrapper} ${styles.statIconAmber}`}><FaBoxOpen /></span>
+                    </div>
+                    <h2 className={`${styles.statValue} ${styles.statValueText}`}>
                         {topMaterial ? topMaterial[0] : '—'}
                     </h2>
                     <p className={styles.statSub}>{topMaterial ? `${topMaterial[1]} units used` : 'No data yet'}</p>
@@ -602,14 +611,15 @@ function MaterialUsagePage() {
                     <input
                         type="text" placeholder="Search by procedure or patient..."
                         className={styles.searchInput}
+                        aria-label="Search material usage logs"
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                     />
                 </div>
                 <div className={styles.dateFilters}>
-                    <input type="date" className={styles.dateInput} value={dateFrom} onChange={e => setDateFrom(e.target.value)} title="From" />
-                    <span className={styles.dateSep}>—</span>
-                    <input type="date" className={styles.dateInput} value={dateTo} onChange={e => setDateTo(e.target.value)} title="To" />
+                    <input type="date" className={styles.dateInput} value={dateFrom} onChange={e => setDateFrom(e.target.value)} title="From" aria-label="From date" />
+                    <span className={styles.dateSep} aria-hidden="true">—</span>
+                    <input type="date" className={styles.dateInput} value={dateTo} onChange={e => setDateTo(e.target.value)} title="To" aria-label="To date" />
                 </div>
             </div>
 
@@ -646,8 +656,11 @@ function MaterialUsagePage() {
                                         </td>
                                         <td className={styles.tdActions}>
                                             <button
+                                                type="button"
                                                 className={styles.expandBtn}
                                                 onClick={() => toggleExpand(log.id)}
+                                                aria-expanded={Boolean(expandedLogs[log.id])}
+                                                aria-label={`${expandedLogs[log.id] ? 'Hide' : 'Show'} material details for ${log.procedureType}`}
                                             >
                                                 {expandedLogs[log.id] ? <><FaChevronUp /> Hide</> : <><FaChevronDown /> Details</>}
                                             </button>
