@@ -196,6 +196,13 @@
     align-items: center;
 }
 
+.splitSection > *,
+.gridTwo > *,
+.gridThree > *,
+.gridFour > * {
+    min-width: 0;
+}
+
 .statCard {
     padding: 22px;
 }
@@ -397,6 +404,10 @@
     flex-wrap: wrap;
     gap: 12px;
     margin-top: 18px;
+}
+
+.contactActionRow .socialBtn {
+    margin-top: 0;
 }
 
 .consultChip {
@@ -801,6 +812,15 @@
 
 .contactCard p {
     overflow-wrap: anywhere;
+}
+
+.contactCard {
+    display: flex;
+    flex-direction: column;
+}
+
+.contactCard .socialBtn {
+    align-self: flex-start;
 }
 
 .formCard,
@@ -1329,10 +1349,13 @@
 @media (max-width: 1040px) {
     .hero,
     .splitSection,
-    .gridFour,
-    .gridThree,
-    .gridTwo {
+    .pageHeroSection .splitSection {
         grid-template-columns: 1fr;
+    }
+
+    .gridFour,
+    .gridThree {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .formGrid {
@@ -1368,6 +1391,11 @@
         height: 360px;
     }
 
+    .pageHeroMedia {
+        width: 100%;
+        min-width: 0;
+    }
+
     .hero {
         min-height: auto;
         gap: 18px;
@@ -1388,7 +1416,9 @@
 }
 
 @media (max-width: 860px) {
-    .hero {
+    .hero,
+    .gridTwo,
+    .gridThree {
         grid-template-columns: 1fr;
     }
 
@@ -1426,6 +1456,10 @@
         padding: 18px;
     }
 
+    .gridFour {
+        grid-template-columns: 1fr;
+    }
+
     .buttonRow {
         flex-direction: column;
         align-items: stretch;
@@ -1456,6 +1490,39 @@
 
     .pageHeroCard {
         padding: 8px 0;
+    }
+
+    .pageHeroSection .splitSection {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 18px;
+    }
+
+    .portraitPlaceholder.pageHeroMedia {
+        height: 230px;
+        border-radius: 22px;
+    }
+
+    .sectionTitle,
+    .cardTitle,
+    .bodyText,
+    .locationCard p,
+    .serviceCard p,
+    .contactCard p {
+        overflow-wrap: anywhere;
+    }
+
+    .serviceCard,
+    .locationCard,
+    .contactCard,
+    .whiteSurfaceCard,
+    .formCard {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
+    .contactCard .socialBtn {
+        align-self: stretch;
     }
 
     .formGrid {

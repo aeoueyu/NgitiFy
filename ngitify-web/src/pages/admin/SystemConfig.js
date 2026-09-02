@@ -208,6 +208,7 @@ const mergeWebsiteContent = (value = {}) => {
 const SystemConfig = () => {
     const { config: loadedConfig, loading: systemConfigLoading } = useSystemConfig();
     const livePublicConfig = usePublicClinicConfig();
+    const initialConfig = mergeSystemConfigState(loadedConfig);
     const [hasLoadedInitialConfig, setHasLoadedInitialConfig] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [websiteActionMessage, setWebsiteActionMessage] = useState('');
@@ -217,7 +218,8 @@ const SystemConfig = () => {
     const [mediaUploadErrors, setMediaUploadErrors] = useState({});
     const [configErrors, setConfigErrors] = useState({});
     const [websitePreviewPage, setWebsitePreviewPage] = useState('');
-    const [config, setConfig] = useState(() => mergeSystemConfigState(loadedConfig));
+    const [config, setConfig] = useState(initialConfig);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
     useEffect(() => {
         if (!systemConfigLoading || loadedConfig) {
@@ -227,7 +229,9 @@ const SystemConfig = () => {
 
     useEffect(() => {
         if (!loadedConfig) return;
-        setConfig(mergeSystemConfigState(loadedConfig));
+        const nextConfig = mergeSystemConfigState(loadedConfig);
+        setConfig(nextConfig);
+        setHasUnsavedChanges(false);
     }, [loadedConfig]);
 
     useEffect(() => {
@@ -250,6 +254,7 @@ const SystemConfig = () => {
 
     const updateConfig = (updater) => {
         setConfig((prev) => mergeSystemConfigState(typeof updater === 'function' ? updater(prev) : updater));
+        setHasUnsavedChanges(true);
     };
 
     const handleChange = (e) => {
@@ -541,12 +546,14 @@ const SystemConfig = () => {
 
             if (res.ok) {
                 const savedConfig = await res.json();
+                const nextConfig = mergeSystemConfigState(savedConfig);
                 invalidateSystemConfigCache();
                 invalidatePublicClinicConfigCache();
                 if (typeof window !== 'undefined') {
                     window.dispatchEvent(new Event(SYSTEM_CONFIG_UPDATED_EVENT));
                 }
-                setConfig(mergeSystemConfigState(savedConfig));
+                setConfig(nextConfig);
+                setHasUnsavedChanges(false);
                 showSuccessModal('System configuration saved successfully.', 'Changes saved');
             } else {
                 const data = await res.json().catch(() => ({}));
@@ -1364,8 +1371,13 @@ const SystemConfig = () => {
                     )}
 
                     <div className={styles.saveRow}>
-                        <button className={styles.saveBtn} onClick={handleSave} disabled={isSaving}>
-                            {isSaving ? 'Saving...' : 'Save Changes'}
+                        <button
+                            className={styles.saveBtn}
+                            onClick={handleSave}
+                            disabled={isSaving || !hasUnsavedChanges}
+                            title={!hasUnsavedChanges ? 'Make a change before saving.' : ''}
+                        >
+                            {isSaving ? 'Saving...' : hasUnsavedChanges ? 'Save Changes' : 'No Changes to Save'}
                         </button>
                     </div>
                 </div>

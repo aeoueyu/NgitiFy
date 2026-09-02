@@ -409,6 +409,189 @@
     align-items: end;
 }
 
+.patientPicker {
+    position: relative;
+    min-width: 0;
+}
+
+.patientPickerControl {
+    min-height: 46px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 10px 0 18px;
+    border: 1.5px solid #d8e1ea;
+    border-radius: 50px;
+    background: #fcfcfc;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.patientPickerControl:focus-within,
+.patientPickerControlOpen {
+    border-color: #01538b;
+    background: #ffffff;
+    box-shadow: 0 0 0 4px rgba(1, 83, 139, 0.1);
+}
+
+.patientPickerSearchIcon {
+    flex: 0 0 auto;
+    color: #7890a3;
+    font-size: 14px;
+}
+
+.patientPickerInput {
+    flex: 1;
+    min-width: 0;
+    min-height: 42px;
+    padding: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: #20384d;
+    font: inherit;
+    font-size: 14px;
+}
+
+.patientPickerInput::placeholder {
+    color: #8b99a6;
+}
+
+.patientPickerInput:disabled {
+    color: #64748b;
+    cursor: not-allowed;
+}
+
+.patientPickerToggle {
+    width: 34px;
+    height: 34px;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 50%;
+    background: #edf6fd;
+    color: #01538b;
+    cursor: pointer;
+    font-size: 20px;
+    line-height: 1;
+}
+
+.patientPickerMenu {
+    position: absolute;
+    z-index: 80;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    overflow: hidden;
+    border: 1px solid #d7e5f0;
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 20px 44px rgba(15, 50, 75, 0.18);
+}
+
+.patientPickerSummary {
+    padding: 11px 16px;
+    border-bottom: 1px solid #e7eef4;
+    background: #f5faff;
+    color: #557084;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.patientPickerList {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: #b6ccdc transparent;
+}
+
+.patientPickerOption {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid transparent;
+    border-radius: 13px;
+    background: transparent;
+    color: #20384d;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.patientPickerOption:hover,
+.patientPickerOption:focus-visible {
+    border-color: #cfe3f3;
+    background: #edf7ff;
+    outline: none;
+}
+
+.patientPickerOptionSelected {
+    border-color: #9fcbea;
+    background: #e6f4fe;
+}
+
+.patientAvatar {
+    width: 42px;
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 13px;
+    background: linear-gradient(135deg, #01538b, #2a8fca);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.patientOptionBody {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+}
+
+.patientOptionBody strong {
+    overflow: hidden;
+    color: #173850;
+    font-size: 13px;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.patientOptionBody > span {
+    overflow: hidden;
+    color: #6b7f92;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.patientBranchBadge {
+    max-width: 170px;
+    overflow: hidden;
+    padding: 6px 9px;
+    border-radius: 999px;
+    background: #eaf5fc;
+    color: #01538b;
+    font-size: 10px;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.patientPickerEmpty {
+    padding: 26px 18px;
+    color: #6b7f92;
+    font-size: 13px;
+    line-height: 1.6;
+    text-align: center;
+}
+
 .userTable {
     width: 100%;
     border-collapse: collapse;
@@ -1169,6 +1352,31 @@ select.formControl {
     .viewerSummary,
     .taskEditBanner {
         grid-template-columns: 1fr;
+    }
+
+    .patientSearchRow {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    .addPatientButton {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .patientPickerOption {
+        grid-template-columns: 38px minmax(0, 1fr);
+    }
+
+    .patientAvatar {
+        width: 38px;
+        height: 38px;
+    }
+
+    .patientBranchBadge {
+        grid-column: 2;
+        justify-self: start;
+        max-width: 100%;
     }
 
     .wideModal,

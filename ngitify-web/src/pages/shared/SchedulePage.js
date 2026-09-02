@@ -525,6 +525,8 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
     const [formState, setFormState] = useState(buildInitialForm({ assignedBranch, currentUserId, role: effectiveScheduleRole }));
     const [formErrors, setFormErrors] = useState({});
     const [formTouched, setFormTouched] = useState({});
+    const [isPatientPickerOpen, setIsPatientPickerOpen] = useState(false);
+    const [patientSearchQuery, setPatientSearchQuery] = useState('');
     const [editingEntry, setEditingEntry] = useState(null);
     const [editMode, setEditMode] = useState('full');
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -583,6 +585,8 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
         setFormState(buildInitialForm({ assignedBranch, currentUserId, role: effectiveScheduleRole }));
         setFormErrors({});
         setFormTouched({});
+        setIsPatientPickerOpen(false);
+        setPatientSearchQuery('');
         setAllowedSlots([]);
         setTakenSlots([]);
         setSlotError('');
@@ -625,7 +629,7 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
                 authFetch(appointmentParams.toString()
                     ? `/appointments?${appointmentParams.toString()}`
                     : '/appointments'),
-                authFetch(`/patients?limit=200&view=directory${patientScopeQuery}`),
+                authFetch(`/patients?limit=500&view=directory${patientScopeQuery}`),
                 authFetch('/assignable-dentists'),
             ];
 
@@ -865,9 +869,32 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
             email: patient.email || '',
             contactNumber: patient.contactNumber || '',
             branch: patient.assignedBranch || patient.assignedBranches?.[0] || '',
+            branches: Array.isArray(patient.assignedBranches) && patient.assignedBranches.length
+                ? patient.assignedBranches.filter(Boolean)
+                : (patient.assignedBranch ? [patient.assignedBranch] : []),
         })),
         [patients]
     );
+
+    const patientOptionsForSelectedBranch = useMemo(() => {
+        const activeBranch = formState.branch || assignedBranch;
+        const branchPatients = activeBranch
+            ? patientOptions.filter((patient) => patient.branches.includes(activeBranch))
+            : patientOptions;
+        return [...branchPatients].sort((left, right) => left.name.localeCompare(right.name));
+    }, [assignedBranch, formState.branch, patientOptions]);
+
+    const visiblePatientOptions = useMemo(() => {
+        const query = patientSearchQuery.trim().toLowerCase();
+        if (!query) return patientOptionsForSelectedBranch;
+        const phoneQuery = normalizePhoneDigits(query);
+        return patientOptionsForSelectedBranch.filter((patient) => (
+            patient.name.toLowerCase().includes(query)
+            || patient.email.toLowerCase().includes(query)
+            || (phoneQuery && normalizePhoneDigits(patient.contactNumber).includes(phoneQuery))
+            || patient.branches.some((branch) => branch.toLowerCase().includes(query))
+        ));
+    }, [patientOptionsForSelectedBranch, patientSearchQuery]);
 
     const phoneCallDuplicateMatches = useMemo(() => {
         if (formState.source !== 'phonecall' || formState.patientId) return [];
@@ -1055,10 +1082,6 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
         return ['completed', 'cancelled'].includes(editingBaseStatus);
     }, [editingBaseStatus, editingEntry, formState.formType]);
 
-    const patientSearchOptions = useMemo(
-        () => patientOptions.map((patient) => `${patient.name}${patient.email ? ` (${patient.email})` : ''}`),
-        [patientOptions]
-    );
     const resetReportFilters = useCallback(() => {
         setPatientFilter('');
         setProcedureFilter('');
@@ -1252,6 +1275,8 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
         setFormState(nextState);
         setFormErrors({});
         setFormTouched({});
+        setIsPatientPickerOpen(false);
+        setPatientSearchQuery('');
         setEditingEntry(entry);
         setEditMode(mode);
         setIsFormOpen(true);
@@ -1404,7 +1429,7 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
             }
         }
         if (name === 'patientName') {
-            const matchedPatient = patientOptions.find((entry) => (
+            const matchedPatient = patientOptionsForSelectedBranch.find((entry) => (
                 nextValue === entry.name
                 || nextValue === entry.email
                 || nextValue === `${entry.name}${entry.email ? ` (${entry.email})` : ''}`
@@ -1435,6 +1460,17 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
         }
         if (name === 'date' || name === 'branch') {
             next.time = '';
+        }
+        if (name === 'branch') {
+            const selectedPatient = patientOptions.find((entry) => entry.id === previousState.patientId);
+            if (selectedPatient && value && !selectedPatient.branches.includes(value)) {
+                next.patientId = '';
+                next.patientName = '';
+                next.contactNumber = '';
+                next.guestEmail = '';
+            }
+            setPatientSearchQuery('');
+            setIsPatientPickerOpen(false);
         }
 
         setFormState(next);
@@ -1476,6 +1512,12 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
         if ((!editingEntry || activeEditMode === 'full') && !state.source) nextErrors.source = SCHEDULE_REQUIRED_MESSAGE;
         if (state.formType === 'appointment') {
             if (requiresIdentityFields && !state.patientId && !isGuestAppointment && !isPhoneCallGuest) nextErrors.patientId = SCHEDULE_REQUIRED_MESSAGE;
+            if (requiresIdentityFields && state.patientId && activeBranch) {
+                const selectedPatient = patientOptions.find((entry) => entry.id === state.patientId);
+                if (selectedPatient && !selectedPatient.branches.includes(activeBranch)) {
+                    nextErrors.patientId = SCHEDULE_REQUIRED_MESSAGE;
+                }
+            }
             if (requiresIdentityFields && isPhoneCallGuest && !state.patientName.trim()) nextErrors.patientName = SCHEDULE_REQUIRED_MESSAGE;
             if (requiresDentistField && !state.dentistId && canChooseDentist) nextErrors.dentistId = SCHEDULE_REQUIRED_MESSAGE;
             if (requiresDateFields && !state.date) nextErrors.date = SCHEDULE_REQUIRED_MESSAGE;
@@ -1849,6 +1891,16 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
             'branch-manager': '/branch-manager/patients',
             secretary: '/secretary/patients',
         }[role];
+        const selectedPatient = patientOptions.find((entry) => entry.id === formState.patientId) || null;
+        const patientFieldDisabled = !canEditUnlinkedGuestIdentity || isTaskEditMode;
+        const patientFieldValue = isPatientPickerOpen
+            ? patientSearchQuery
+            : (selectedPatient
+                ? `${selectedPatient.name}${selectedPatient.email ? ` (${selectedPatient.email})` : ''}`
+                : formState.patientName);
+        const patientPickerSummary = activeBranch
+            ? `${patientOptionsForSelectedBranch.length} active patient${patientOptionsForSelectedBranch.length === 1 ? '' : 's'} in ${activeBranch}`
+            : `${patientOptionsForSelectedBranch.length} active patient${patientOptionsForSelectedBranch.length === 1 ? '' : 's'} · Selecting a patient will set the branch`;
 
         return (
             <div className={styles.modalOverlay}>
@@ -1934,25 +1986,90 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
                                     {!isGuestAppointment && !isPhoneCallGuest && <span className={styles.requiredMark}>*</span>}
                                 </label>
                                 <div className={styles.patientSearchRow}>
-                                    <div>
-                                        <input
-                                            list="schedule-patient-search"
-                                            type="text"
-                                            name="patientName"
-                                            className={`${styles.formControl} ${(formErrors.patientId || formErrors.patientName) ? styles.errorBorder : ''}`}
-                                            value={showWalkInFields || isPhoneCallGuest
-                                                ? formState.patientName
-                                                : (formState.patientId ? `${formState.patientName}${patientOptions.find((entry) => entry.id === formState.patientId)?.email ? ` (${patientOptions.find((entry) => entry.id === formState.patientId)?.email})` : ''}` : formState.patientName)}
-                                            onChange={handleFormFieldChange}
-                                            placeholder={editingEntry ? 'Patient name' : ((isGuestAppointment || formState.source === 'phonecall') ? 'Guest name or linked patient' : 'Search patient name or email')}
-                                            disabled={!canEditUnlinkedGuestIdentity || isTaskEditMode}
-                                        />
-                                        {canEditUnlinkedGuestIdentity && !isTaskEditMode && (
-                                            <datalist id="schedule-patient-search">
-                                                {patientSearchOptions.map((option) => (
-                                                    <option key={option} value={option} />
-                                                ))}
-                                            </datalist>
+                                    <div
+                                        className={styles.patientPicker}
+                                        onBlur={(event) => {
+                                            if (!event.currentTarget.contains(event.relatedTarget)) {
+                                                setIsPatientPickerOpen(false);
+                                            }
+                                        }}
+                                    >
+                                        <div className={`${styles.patientPickerControl} ${isPatientPickerOpen ? styles.patientPickerControlOpen : ''} ${(formErrors.patientId || formErrors.patientName) ? styles.errorBorder : ''}`}>
+                                            <FaSearch className={styles.patientPickerSearchIcon} aria-hidden="true" />
+                                            <input
+                                                type="text"
+                                                name="patientName"
+                                                className={styles.patientPickerInput}
+                                                value={patientFieldValue}
+                                                onFocus={() => {
+                                                    if (patientFieldDisabled) return;
+                                                    setPatientSearchQuery(formState.patientId ? '' : formState.patientName);
+                                                    setIsPatientPickerOpen(true);
+                                                }}
+                                                onChange={(event) => {
+                                                    setPatientSearchQuery(event.target.value);
+                                                    setIsPatientPickerOpen(true);
+                                                    handleFormFieldChange(event);
+                                                }}
+                                                placeholder={editingEntry ? 'Patient name' : ((isGuestAppointment || formState.source === 'phonecall') ? 'Guest name or linked patient' : 'Search patient name, email, or phone')}
+                                                disabled={patientFieldDisabled}
+                                                autoComplete="off"
+                                                role="combobox"
+                                                aria-expanded={isPatientPickerOpen}
+                                                aria-controls="schedule-patient-options"
+                                                aria-autocomplete="list"
+                                            />
+                                            {!patientFieldDisabled && (
+                                                <button
+                                                    type="button"
+                                                    className={styles.patientPickerToggle}
+                                                    aria-label={isPatientPickerOpen ? 'Close patient list' : 'Open patient list'}
+                                                    onMouseDown={(event) => event.preventDefault()}
+                                                    onClick={() => {
+                                                        setPatientSearchQuery('');
+                                                        setIsPatientPickerOpen((current) => !current);
+                                                    }}
+                                                >
+                                                    <span aria-hidden="true">⌄</span>
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {isPatientPickerOpen && !patientFieldDisabled && (
+                                            <div id="schedule-patient-options" className={styles.patientPickerMenu} role="listbox">
+                                                <div className={styles.patientPickerSummary}>{patientPickerSummary}</div>
+                                                <div className={styles.patientPickerList}>
+                                                    {visiblePatientOptions.length > 0 ? visiblePatientOptions.map((patient) => (
+                                                        <button
+                                                            key={patient.id}
+                                                            type="button"
+                                                            role="option"
+                                                            aria-selected={patient.id === formState.patientId}
+                                                            className={`${styles.patientPickerOption} ${patient.id === formState.patientId ? styles.patientPickerOptionSelected : ''}`}
+                                                            onClick={() => {
+                                                                handleFormFieldChange({ target: { name: 'patientId', value: patient.id } });
+                                                                setPatientSearchQuery('');
+                                                                setIsPatientPickerOpen(false);
+                                                            }}
+                                                        >
+                                                            <span className={styles.patientAvatar}>
+                                                                {patient.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'P'}
+                                                            </span>
+                                                            <span className={styles.patientOptionBody}>
+                                                                <strong>{patient.name}</strong>
+                                                                <span>{[patient.email, patient.contactNumber ? `+63 ${normalizeSchedulePhoneInput(patient.contactNumber)}` : ''].filter(Boolean).join(' · ') || 'No contact details'}</span>
+                                                            </span>
+                                                            <span className={styles.patientBranchBadge}>{patient.branch || 'No branch'}</span>
+                                                        </button>
+                                                    )) : (
+                                                        <div className={styles.patientPickerEmpty}>
+                                                            {activeBranch
+                                                                ? `No active patients found in ${activeBranch}${patientSearchQuery ? ' for this search' : ''}.`
+                                                                : 'No active patients found.'}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
                                     {!editingEntry && !isTaskEditMode && patientManagementPath && (
