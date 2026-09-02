@@ -169,6 +169,14 @@
     color: var(--website-primary);
 }
 
+.socialBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 18px;
+    box-sizing: border-box;
+}
+
 .primaryBtn:hover,
 .secondaryBtn:hover,
 .socialBtn:hover {
@@ -788,6 +796,11 @@
     color: var(--website-primary);
     font-size: 1.05rem;
     font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.contactCard p {
+    overflow-wrap: anywhere;
 }
 
 .formCard,
