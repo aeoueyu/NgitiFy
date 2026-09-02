@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { authFetch } from '../../utils/api';
 import styles from '../../styles/admin/SystemConfig.module.css';
 import { invalidateSystemConfigCache, SYSTEM_CONFIG_UPDATED_EVENT, useSystemConfig } from '../../hooks/useSystemConfig';
-import { invalidatePublicClinicConfigCache } from '../../hooks/usePublicClinicConfig';
+import { invalidatePublicClinicConfigCache, usePublicClinicConfig } from '../../hooks/usePublicClinicConfig';
 import { cloneWebsiteContentDefaults } from '../../data/websiteContent';
 import { getDefaultServiceImage, websiteMediaDefaults } from '../../data/websiteMediaDefaults';
 import useRealtimeSystemEmailValidation from '../../hooks/useRealtimeSystemEmailValidation';
 import { INVALID_EMAIL_ADDRESS_MESSAGE, INVALID_EMAIL_DOMAIN_MESSAGE, isValidEmailFormat } from '../../utils/patientIntake';
+import WebsitePreviewModal from '../../components/admin/WebsitePreviewModal';
 
 const DEFAULT_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
 const DEFAULT_ONLINE_BOOKING_PROCEDURES = [
@@ -206,6 +207,7 @@ const mergeWebsiteContent = (value = {}) => {
 
 const SystemConfig = () => {
     const { config: loadedConfig, loading: systemConfigLoading } = useSystemConfig();
+    const livePublicConfig = usePublicClinicConfig();
     const [hasLoadedInitialConfig, setHasLoadedInitialConfig] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [websiteActionMessage, setWebsiteActionMessage] = useState('');
@@ -214,6 +216,7 @@ const SystemConfig = () => {
     const [feedbackModal, setFeedbackModal] = useState(null);
     const [mediaUploadErrors, setMediaUploadErrors] = useState({});
     const [configErrors, setConfigErrors] = useState({});
+    const [websitePreviewPage, setWebsitePreviewPage] = useState('');
     const [config, setConfig] = useState(() => mergeSystemConfigState(loadedConfig));
 
     useEffect(() => {
@@ -1007,10 +1010,46 @@ const SystemConfig = () => {
         { key: 'contact', label: 'Contact' },
         { key: 'appointment', label: 'Appointment' },
     ];
+    const previewPageForTab = {
+        branding: 'home',
+        home: 'home',
+        about: 'about',
+        services: 'services',
+        contact: 'contact',
+        appointment: 'appointment',
+    };
+    const previewWebsiteContent = mergeWebsiteContent(config.websiteContent);
+    const previewClinicInfo = {
+        ...(livePublicConfig.clinicInfo || {}),
+        name: config.clinicName,
+        contactNumber: config.clinicContact,
+        email: config.clinicEmail,
+        address: config.clinicAddress,
+        tagline: previewWebsiteContent.branding.tagline,
+        owner: previewWebsiteContent.branding.owner,
+        facebookUrl: previewWebsiteContent.branding.facebookUrl,
+        facebookName: previewWebsiteContent.branding.facebookName,
+        instagramHandle: String(previewWebsiteContent.branding.instagramHandle || '').replace(/^@+/, ''),
+    };
+    const websitePreviewConfig = {
+        ...livePublicConfig,
+        clinicInfo: previewClinicInfo,
+        appointmentProcedures: config.onlineBookingProcedures,
+        featureToggles: config.featureToggles,
+        websiteContent: previewWebsiteContent,
+        serviceHighlights: previewWebsiteContent.serviceHighlights,
+    };
     const showWebsiteActionOverlay = Boolean(websiteActionMessage);
 
     return (
         <div className={styles.container}>
+            {websitePreviewPage && (
+                <WebsitePreviewModal
+                    initialPage={websitePreviewPage}
+                    publicConfig={websitePreviewConfig}
+                    onClose={() => setWebsitePreviewPage('')}
+                />
+            )}
             {showWebsiteActionOverlay && (
                 <div className={styles.actionOverlay} role="status" aria-live="polite" aria-busy="true">
                     <div className={styles.actionOverlayCard}>
@@ -1287,10 +1326,21 @@ const SystemConfig = () => {
 
                     {activeSection === 'website' && (
                         <div className={styles.section}>
-                            <h2 className={styles.sectionTitle}>Website Content</h2>
-                            <p className={styles.sectionDesc}>
-                                Manage the copy shown on the public website. Clinic name, phone number, email, and address still come from the Clinic Info section above.
-                            </p>
+                            <div className={styles.websiteEditorHeader}>
+                                <div>
+                                    <h2 className={styles.sectionTitle}>Website Content</h2>
+                                    <p className={styles.sectionDesc}>
+                                        Manage the copy shown on the public website. Clinic name, phone number, email, and address still come from the Clinic Info section above.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    className={styles.websitePreviewBtn}
+                                    onClick={() => setWebsitePreviewPage(previewPageForTab[activeWebsiteTab] || 'home')}
+                                >
+                                    Preview Full Page
+                                </button>
+                            </div>
                             <div className={styles.websiteTabBar}>
                                 {WEBSITE_EDITOR_TABS.map((tab) => (
                                     <button

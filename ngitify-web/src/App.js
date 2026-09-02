@@ -11,6 +11,7 @@ import WebsiteAbout from './pages/website/WebsiteAbout';
 import WebsiteServices from './pages/website/WebsiteServices';
 import WebsiteContact from './pages/website/WebsiteContact';
 import WebsiteAppointment from './pages/website/WebsiteAppointment';
+import WebsitePreview from './pages/website/WebsitePreview';
 import PreRegisterPage from './pages/PreRegisterPage';
 import LoginPage from './pages/auth/LoginPage';
 
@@ -113,7 +114,7 @@ function App() {
           <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public & Authentication Routes */}
-              <Route path="/" element={<WebsiteHome />} />
+              <Route path="/" element={window.location.search.includes('website-preview=1') ? <WebsitePreview /> : <WebsiteHome />} />
               <Route path="/about" element={<WebsiteAbout />} />
               <Route path="/services" element={<WebsiteServices />} />
               <Route path="/locations" element={<Navigate to="/about#locations" replace />} />

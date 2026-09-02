@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { publicFetch } from '../utils/api';
 import {
     appointmentProcedures as fallbackAppointmentProcedures,
@@ -130,6 +130,14 @@ const FALLBACK_PUBLIC_CONFIG = {
 let cachedPublicClinicConfig = null;
 let pendingPublicClinicRequest = null;
 
+const PublicClinicConfigPreviewContext = createContext(null);
+
+export const PublicClinicConfigPreviewProvider = ({ value, children }) => (
+    <PublicClinicConfigPreviewContext.Provider value={value}>
+        {children}
+    </PublicClinicConfigPreviewContext.Provider>
+);
+
 const normalizePublicClinicConfig = (value = {}) => {
     const websiteContent = normalizeWebsiteContent(value?.websiteContent || {});
     const clinicInfo = {
@@ -205,6 +213,7 @@ export const invalidatePublicClinicConfigCache = () => {
 };
 
 export const usePublicClinicConfig = () => {
+    const previewConfig = useContext(PublicClinicConfigPreviewContext);
     const [config, setConfig] = useState(cachedPublicClinicConfig || normalizePublicClinicConfig());
     const [loading, setLoading] = useState(!cachedPublicClinicConfig);
 
@@ -256,7 +265,7 @@ export const usePublicClinicConfig = () => {
         };
     }, []);
 
-    return { ...config, loading };
+    return previewConfig || { ...config, loading };
 };
 
 export default usePublicClinicConfig;
