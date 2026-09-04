@@ -93,6 +93,12 @@ const formatAddress = (address) => {
     return parts.length ? parts.join(', ') : '-';
 };
 
+const getMergedHomeAddress = (profile) => ({
+    ...(profile?.permanentAddress || {}),
+    ...(profile?.currentAddress || {}),
+    ...(profile?.homeAddress || {}),
+});
+
 function DetailRow({ label, value, last = false }) {
     return (
         <View style={[styles.detailRow, !last && styles.detailRowBorder]}>
@@ -207,7 +213,7 @@ export default function MyProfileScreen({ navigation }) {
     }, [profile]);
 
     const detailSections = useMemo(() => {
-        const homeAddress = formatAddress(profile?.homeAddress || profile?.currentAddress || profile?.permanentAddress);
+        const homeAddress = formatAddress(getMergedHomeAddress(profile));
 
         return [
             {
@@ -399,7 +405,7 @@ export default function MyProfileScreen({ navigation }) {
                     <Text style={styles.quickInfoTitle}>Quick info</Text>
                     <Text style={styles.quickInfoText}>Phone: {contactNumber}</Text>
                     <Text style={styles.quickInfoText}>
-                        Address: {formatAddress(profile?.homeAddress || profile?.currentAddress || profile?.permanentAddress)}
+                        Address: {formatAddress(getMergedHomeAddress(profile))}
                     </Text>
                 </View>
 

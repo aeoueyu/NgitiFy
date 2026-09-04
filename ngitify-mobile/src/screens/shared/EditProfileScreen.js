@@ -41,14 +41,28 @@ const nameFromCode = (list, codeKey, nameKey, code) => {
 
 // Resolves a stored DB value (code OR name) → the correct code for dropdown state.
 // Fixes the case where the DB previously stored codes instead of names.
-const resolveToCode = (list, nameKey, codeKey, value) => {
+const normalizeAddressValue = value => String(value || '').trim().toLowerCase();
+
+const resolveToCode = (list, nameKey, codeKey, value, belongsToParent = () => true) => {
     if (!value) return '';
-    // If value is already a valid code, return it directly
-    if (list.find(i => i[codeKey] === value)) return value;
-    // Otherwise try to match by name
-    const byName = list.find(i => i[nameKey]?.toLowerCase() === value.toLowerCase());
+    const byCode = list.find(i => String(i[codeKey]) === String(value) && belongsToParent(i));
+    if (byCode) return byCode[codeKey];
+
+    // Address names such as San Jose occur under multiple parents. Scope the
+    // match so the resolved value is present in the corresponding dropdown.
+    const normalizedValue = normalizeAddressValue(value);
+    const byName = list.find(i => (
+        normalizeAddressValue(i[nameKey]) === normalizedValue && belongsToParent(i)
+    ));
     return byName ? byName[codeKey] : '';
 };
+
+// Some older records split address values across these legacy fields.
+const getMergedHomeAddress = data => ({
+    ...(data?.permanentAddress || {}),
+    ...(data?.currentAddress || {}),
+    ...(data?.homeAddress || {}),
+});
 
 const formatDisplayDate = (dateStr) => {
     if (!dateStr) return '';
@@ -208,22 +222,31 @@ export default function EditProfileScreen({ navigation }) {
             if (!res.ok) throw new Error('Failed to load profile.');
             const data = await res.json();
 
-            const addr = data.homeAddress || data.currentAddress || data.permanentAddress || {};
+            const addr = getMergedHomeAddress(data);
 
             // Resolve stored values (code OR name) → codes for dropdown filtering
             const regCode      = resolveToCode(regionsData,   'region_name',   'region_code',   addr.region);
-            const provCode     = resolveToCode(provincesData, 'province_name', 'province_code', addr.province);
-            const cityCode     = resolveToCode(citiesData,    'city_name',     'city_code',     addr.city);
-            const brgyCode = (() => {
-                const val = addr.barangay;
-                if (!val) return '';
-                if (barangaysData.find(b => b.brgy_code === val)) return val;  // already a code
-                // Scope to resolved city to avoid ambiguous name matches
-                const inCity = barangaysData.find(b => b.brgy_name?.toLowerCase() === val.toLowerCase() && b.city_code === cityCode);
-                if (inCity) return inCity.brgy_code;
-                const anywhere = barangaysData.find(b => b.brgy_name?.toLowerCase() === val.toLowerCase());
-                return anywhere ? anywhere.brgy_code : '';
-            })();
+            const provCode     = resolveToCode(
+                provincesData,
+                'province_name',
+                'province_code',
+                addr.province,
+                province => !regCode || province.region_code === regCode,
+            );
+            const cityCode     = resolveToCode(
+                citiesData,
+                'city_name',
+                'city_code',
+                addr.city,
+                city => !provCode || city.province_code === provCode,
+            );
+            const brgyCode     = resolveToCode(
+                barangaysData,
+                'brgy_name',
+                'brgy_code',
+                addr.barangay,
+                barangay => !cityCode || barangay.city_code === cityCode,
+            );
 
             const populated = {
                 firstName:  data.name?.first  || '',
