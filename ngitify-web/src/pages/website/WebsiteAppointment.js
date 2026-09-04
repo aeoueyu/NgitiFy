@@ -582,7 +582,7 @@ export default function WebsiteAppointment() {
             setSuccessModalMessage(
                 data.existingPatientMatched
                     ? `Your appointment request for ${formData.branch} on ${formatReadableDate(formData.preferredDate)} at ${to12h(formData.preferredTime)} has been sent using your existing patient record. The clinic will email you once it is confirmed.`
-                    : `Your appointment request for ${formData.branch} on ${formatReadableDate(formData.preferredDate)} at ${to12h(formData.preferredTime)} has been sent. The clinic will email you once it is confirmed.`
+                    : `Your appointment request for ${formData.branch} on ${formatReadableDate(formData.preferredDate)} at ${to12h(formData.preferredTime)} has been sent. Check your email now for the pre-registration link. Your requested schedule is still pending clinic confirmation.`
             );
             setSubmitState('success');
             setIsSuccessModalOpen(true);

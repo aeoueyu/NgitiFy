@@ -560,5 +560,34 @@
 }
 
 @media (max-width: 680px) {
+    .main-content {
+        min-width: 0;
+        padding: 18px 12px 104px;
+    }
+
+    .header {
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .header-left {
+        min-width: 0;
+    }
+
+    .header-right {
+        width: auto;
+        align-self: flex-end;
+    }
+
+    .title {
+        font-size: 21px;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+    }
+
+    .subtitle {
+        line-height: 1.6;
+    }
+
     .statsGridFour { grid-template-columns: 1fr; }
 }

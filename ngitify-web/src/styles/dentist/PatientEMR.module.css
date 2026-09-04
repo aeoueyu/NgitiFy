@@ -474,11 +474,200 @@
 .radioDate { color: #64748b; font-size: 13px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 6px; }
 
 @media (max-width: 1100px) {
+    .main-content {
+        padding: 24px;
+    }
+
+    .formCard {
+        width: calc(100vw - 48px);
+        min-width: 0;
+        padding: 28px;
+    }
+
+    .contentCard {
+        padding: 24px;
+    }
+
     .compactInfoGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .checklistGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 720px) {
+    .main-content {
+        min-width: 0;
+        padding: 18px 12px 104px;
+    }
+
+    .mainOverlay {
+        align-items: flex-end;
+    }
+
+    .formCard {
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+        max-height: calc(100dvh - 12px);
+        padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
+        border-radius: 20px 20px 0 0;
+    }
+
+    .headerWrapper,
+    .headerLeft,
+    .imageViewerHeader,
+    .timelineHeader {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 14px;
+    }
+
+    .headerLeft {
+        width: 100%;
+    }
+
+    .backIconButton {
+        width: 44px;
+        height: 44px;
+        margin: 0;
+    }
+
+    .title {
+        font-size: 22px;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+    }
+
+    .profileHeaderCard {
+        align-items: flex-start;
+        gap: 18px;
+        padding: 20px 16px;
+        text-align: left;
+    }
+
+    .patientMainInfo,
+    .profileHeaderActions {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .nameRow,
+    .metaRow {
+        align-items: flex-start;
+        justify-content: flex-start;
+    }
+
+    .patientName,
+    .patientId,
+    .metaItem {
+        max-width: 100%;
+        overflow-wrap: anywhere;
+    }
+
+    .profileHeaderActions > * {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .tabContainer {
+        width: 100%;
+        gap: 2px;
+        scroll-snap-type: x proximity;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tabBtn {
+        min-height: 44px;
+        padding: 12px 16px;
+        scroll-snap-align: start;
+    }
+
+    .contentCard {
+        min-width: 0;
+        padding: 18px 14px;
+        border-radius: 14px;
+    }
+
+    .inputField,
+    .textareaField,
+    .fileInputField,
+    .searchInput,
+    .filterSelect,
+    .dateInput {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
+    .radioPillGroup {
+        min-height: 46px;
+        padding: 10px 14px;
+        flex-wrap: wrap;
+        border-radius: 14px;
+    }
+
+    .formActions,
+    .modalButtonGroup,
+    .searchFilterGroup,
+    .controlsRow {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .formActions,
+    .modalButtonGroup {
+        flex-direction: column-reverse;
+    }
+
+    .formActions > button,
+    .modalButtonGroup > button,
+    .searchFilterGroup > *,
+    .controlsRow > * {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .searchWrapper,
+    .dateFilterWrapper {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
+    .dateFilterWrapper {
+        height: auto;
+        min-height: 44px;
+        flex-wrap: wrap;
+    }
+
+    .timeline {
+        padding-left: 8px;
+    }
+
+    .timelineItem {
+        min-width: 0;
+        margin-left: 26px;
+    }
+
+    .timelineDot {
+        left: -39px;
+    }
+
+    .timelineHeader {
+        padding: 16px;
+    }
+
+    .imageViewerTitleBox {
+        align-items: flex-start;
+        text-align: left;
+    }
+
+    .modalCard {
+        width: 100%;
+        max-width: none;
+        padding: 24px 18px calc(22px + env(safe-area-inset-bottom));
+        border-radius: 20px 20px 0 0;
+        box-sizing: border-box;
+    }
+
     .pairedInfoGrid,
     .compactInfoGrid {
         grid-template-columns: 1fr;
@@ -1227,10 +1416,9 @@
 @keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
 @media (max-width: 768px) {
-    .profileHeaderCard { flex-direction: column; text-align: center; gap: 20px; padding: 25px; }
-    .nameRow { flex-direction: column; justify-content: center; gap: 10px; }
+    .profileHeaderCard { flex-direction: column; gap: 20px; padding: 25px; }
+    .nameRow { flex-direction: column; gap: 10px; }
     .patientId { margin-left: 0; }
-    .metaRow { justify-content: center; }
     .detailGrid { grid-template-columns: 1fr; gap: 15px; }
     .printPreviewToolbar { flex-direction: column; align-items: flex-start; }
     .printPreviewActions { width: 100%; justify-content: flex-end; }

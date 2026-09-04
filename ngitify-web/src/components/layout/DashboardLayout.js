@@ -58,9 +58,9 @@ export default function DashboardLayout() {
     });
 
     return (
-        <div className={styles.dashboardContainer}>
+        <div className={`${styles.dashboardContainer} ${user?.role === 'patient' ? styles.patientLayout : ''}`}>
             <Sidebar />
-            <div className={styles.mainContent}>
+            <div className={`${styles.mainContent} ${user?.role === 'patient' ? styles.patientMainContent : ''}`}>
                 <Outlet />
             </div>
 

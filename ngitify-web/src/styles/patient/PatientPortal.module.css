@@ -2011,6 +2011,10 @@ button.toolCard:focus-visible {
 }
 
 @media (max-width: 1024px) {
+    .page {
+        padding: 24px;
+    }
+
     .header {
         flex-direction: column;
         align-items: flex-start;
@@ -2054,6 +2058,21 @@ button.toolCard:focus-visible {
 
     .ohmCalendarGrid > :last-child {
         grid-column: auto;
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+    .dashboardStatGrid,
+    .metricGrid,
+    .toolGrid,
+    .cardGrid,
+    .infoGrid,
+    .formGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .fieldWide {
+        grid-column: 1 / -1;
     }
 }
 
@@ -2174,6 +2193,167 @@ button.toolCard:focus-visible {
 
     .patientTeethTrack {
         grid-template-columns: repeat(4, minmax(54px, 1fr));
+    }
+}
+
+@media (max-width: 600px) {
+    .page {
+        padding: 18px 12px 104px;
+    }
+
+    .header {
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .headerActions,
+    .heroActions,
+    .dashboardActionRow,
+    .dashboardActionStack {
+        width: 100%;
+        align-items: stretch;
+    }
+
+    .headerActions > *,
+    .heroActions > *,
+    .dashboardActionRow > *,
+    .dashboardActionStack > * {
+        flex: 1 1 100%;
+        width: 100%;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .title {
+        font-size: 21px;
+        line-height: 1.25;
+    }
+
+    .heroTitle,
+    .dashboardAppointmentTitle {
+        font-size: 22px;
+    }
+
+    .heroCard,
+    .metricCard,
+    .dashboardStatCard,
+    .dashboardWidget,
+    .toolCard,
+    .listCard,
+    .infoCard,
+    .timelineCard,
+    .summaryCard,
+    .tabPanel,
+    .calendarShell {
+        padding: 16px;
+        border-radius: 14px;
+    }
+
+    .sectionHeader,
+    .listHeader {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .sectionHeader > :last-child,
+    .listHeader > :last-child {
+        align-self: flex-start;
+    }
+
+    .tabs {
+        flex-wrap: nowrap;
+        width: 100%;
+        overflow-x: auto;
+        padding: 2px 2px 8px;
+        scrollbar-width: thin;
+        scroll-snap-type: x proximity;
+    }
+
+    .tabButton {
+        flex: 0 0 auto;
+        min-height: 42px;
+        scroll-snap-align: start;
+    }
+
+    .detailPill {
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .calendarGrid {
+        gap: 4px;
+    }
+
+    .calendarMonth {
+        font-size: 16px;
+    }
+
+    .dayName {
+        font-size: 9px;
+    }
+
+    .dateCell {
+        min-height: 46px;
+        padding: 4px 2px;
+    }
+
+    .dateNumber {
+        font-size: 12px;
+    }
+
+    .dateMeta {
+        display: none;
+    }
+
+    .ohmChoiceGrid,
+    .ohmChoiceWrap {
+        display: grid;
+        grid-template-columns: 1fr;
+        width: 100%;
+    }
+
+    .ohmChoiceButton {
+        width: 100%;
+        min-height: 44px;
+        justify-content: flex-start;
+        border-radius: 12px;
+    }
+
+    .ohmTrendRow {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .modalOverlay {
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    .modalCard {
+        width: 100%;
+        max-height: calc(100dvh - 12px);
+        padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
+        border-radius: 20px 20px 0 0;
+    }
+
+    .modalTitle {
+        font-size: 19px;
+    }
+
+    .modalClose {
+        flex: 0 0 42px;
+        width: 42px;
+        height: 42px;
+    }
+
+    .formGrid,
+    .infoGrid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .fieldWide {
+        grid-column: auto;
     }
 }
 

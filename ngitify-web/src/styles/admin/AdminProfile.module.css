@@ -107,9 +107,95 @@ select.inputField { cursor: pointer; background-image: url('data:image/svg+xml;c
 .modalButton:hover { background-color: #013f6b; }
 
 @media (max-width: 900px) {
+    .container {
+        padding: 24px;
+    }
+
     .card {
         padding: 24px;
         max-width: 100%;
+        box-sizing: border-box;
+    }
+}
+
+@media (max-width: 600px) {
+    .container {
+        min-width: 0;
+        padding: 18px 12px 104px;
+    }
+
+    .headerWrapper {
+        margin-bottom: 20px;
+    }
+
+    .title {
+        font-size: 22px;
+        line-height: 1.25;
+    }
+
+    .card {
+        padding: 20px 16px;
+        border-radius: 14px;
+    }
+
+    .profileSection {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 18px;
+        padding-bottom: 22px;
+        margin-bottom: 22px;
+    }
+
+    .profileText {
+        min-width: 0;
+    }
+
+    .profileText h2 {
+        overflow-wrap: anywhere;
+    }
+
+    .row,
+    .emailRow {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 14px;
+    }
+
+    .formGroup {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .changeEmailBtn {
+        width: 100%;
+    }
+
+    .checkboxGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .buttonGroup {
+        flex-direction: column-reverse;
+        align-items: stretch;
+        margin-top: 28px;
+    }
+
+    .buttonGroup > button {
+        width: 100%;
+        min-height: 46px;
+    }
+
+    .modalOverlay {
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    .modalCard {
+        width: 100%;
+        max-width: none;
+        padding: 26px 20px calc(24px + env(safe-area-inset-bottom));
+        border-radius: 20px 20px 0 0;
+        box-sizing: border-box;
     }
 }
 

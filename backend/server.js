@@ -3640,7 +3640,7 @@ const provisionGuestPatientAccountForAppointment = async ({ surgery, actor }) =>
         action: 'AUTO_CREATE_GUEST_PATIENT',
         user: actor?.email || actor?.id || 'SYSTEM',
         role: actor?.role || 'SYSTEM',
-        details: `Created inactive patient ${newUser.email} from confirmed guest appointment ${surgery._id}.`,
+        details: `Created inactive patient ${newUser.email} from guest appointment ${surgery._id}.`,
     });
 
     return { patient: newUser, linkedExisting: false, requiresPreRegistration: true };
@@ -5201,7 +5201,7 @@ const hasGuestRegistrationData = (appointment) => (
 
 const buildPreRegistrationUrl = (token) => `${process.env.FRONTEND_URL}/pre-register?token=${token}`;
 
-const sendPreRegistrationEmail = async ({ email, name, branch, date, time, procedure, token }) => {
+const sendPreRegistrationEmail = async ({ email, name, branch, date, time, procedure, token, status = 'confirmed' }) => {
     if (!email || !token) return;
 
     const safeName = name || 'Patient';
@@ -5212,15 +5212,20 @@ const sendPreRegistrationEmail = async ({ email, name, branch, date, time, proce
         DEFAULT_SYSTEM_EMAIL_TEMPLATES.appointmentReminder
     );
     const preRegistrationUrl = buildPreRegistrationUrl(token);
+    const isConfirmed = String(status || '').trim().toLowerCase() === 'confirmed';
 
     await resend.emails.send({
         from: 'NgitiFy Appointments <noreply@ngitify.com>',
         to: email,
-        subject: `Complete Your Registration - ${clinic.clinicName} Appointment Confirmed`,
+        subject: isConfirmed
+            ? `Complete Your Registration - ${clinic.clinicName} Appointment Confirmed`
+            : `Complete Your Registration - ${clinic.clinicName} Appointment Request Received`,
         html: buildDentimeEmailTemplate({
             clinic,
-            title: 'Appointment Confirmed',
-            intro: 'Please complete your registration so the clinic can prepare your patient record in advance.',
+            title: isConfirmed ? 'Appointment Confirmed' : 'Appointment Request Received',
+            intro: isConfirmed
+                ? 'Please complete your registration so the clinic can prepare your patient record in advance.'
+                : 'We received your appointment request. Please complete your registration while the clinic reviews your requested schedule.',
             bodyHtml: `
                 <p style="margin:0 0 14px 0;">Hello ${safeName},</p>
                 <div style="background:#f7fbfe;border:1px solid #d9edf7;border-radius:18px;padding:18px;margin:18px 0;">
@@ -5230,6 +5235,7 @@ const sendPreRegistrationEmail = async ({ email, name, branch, date, time, proce
                     <p style="margin:0;"><strong>Procedure:</strong> ${procedure}</p>
                 </div>
                 ${reminderCopy ? `<p style="margin:0 0 14px 0;">${reminderCopy}</p>` : ''}
+                ${isConfirmed ? '' : '<p style="margin:0 0 14px 0;">Your requested schedule is still pending clinic confirmation.</p>'}
                 <p style="margin:0 0 14px 0;">This secure link will expire in ${PRE_REGISTRATION_TOKEN_LIFETIME_LABEL}.</p>
                 <p style="margin:0;">If you have questions, you may contact the clinic through the details below.</p>
             `,
@@ -9165,6 +9171,7 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
             updateFields.statusReminderSentAt = null;
             updateFields.statusReminderDayKey = '';
         }
+        const hadActivePreRegistrationLink = isPreRegistrationTokenStillActive(currentSurgery);
         let guestProvisioning = { patient: null, linkedExisting: false, requiresPreRegistration: false };
         if (currentSurgery.status !== 'confirmed' && status === 'confirmed' && isGuestPreRegistrationEntry) {
             if (!currentSurgery.patient) {
@@ -9222,7 +9229,7 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
                 }));
             }
 
-            if (guestProvisioning.requiresPreRegistration && updatedSurgery.preRegistrationToken) {
+            if (guestProvisioning.requiresPreRegistration && updatedSurgery.preRegistrationToken && !hadActivePreRegistrationLink) {
                 await runPostSaveSideEffect('email:preRegistration', () => sendPreRegistrationEmail({
                     email: updatedSurgery.guestEmail,
                     name: updatedSurgery.guestName,
@@ -9231,6 +9238,7 @@ app.put(['/api/surgeries/:id/status', '/api/appointments/:id/status'], verifyTok
                     time: updatedSurgery.time,
                     procedure: updatedSurgery.procedure,
                     token: updatedSurgery.preRegistrationToken,
+                    status: updatedSurgery.status,
                 }));
                 await runPostSaveSideEffect('audit:preRegistrationLinkSent', () => AuditLog.create({
                     action: 'PRE_REGISTRATION_LINK_SENT',
@@ -10083,30 +10091,42 @@ app.post('/api/pre-register/:token', async (req, res) => {
         surgery.guestDentalHistory = guestDentalHistory;
         surgery.guestConsentAcknowledgement = guestConsentAcknowledgement;
         surgery.guestDataPrivacyConsent = guestDataPrivacyConsent;
+
+        let linkedPatient = surgery.patient ? await User.findById(surgery.patient) : null;
+        if (!linkedPatient && !surgery.patient) {
+            const guestProvisioning = await provisionGuestPatientAccountForAppointment({
+                surgery,
+                actor: { email: surgery.guestEmail, role: 'guest' },
+            });
+            if (guestProvisioning.errorMessage) {
+                return res.status(guestProvisioning.errorStatus || 400).json({ message: guestProvisioning.errorMessage });
+            }
+            linkedPatient = guestProvisioning.patient;
+            if (linkedPatient?._id) {
+                surgery.patient = linkedPatient._id;
+            }
+        }
+
         surgery.preRegistrationCompleted = true;
         surgery.preRegistrationToken = undefined;
         surgery.preRegistrationTokenExpiry = undefined;
 
-        let linkedPatient = null;
-        if (surgery.patient) {
-            linkedPatient = await User.findById(surgery.patient);
-            if (linkedPatient && linkedPatient.role === 'patient') {
-                const patientPayload = buildPatientPayload({
-                    body: req.body,
-                    fallbackGuest: surgery,
-                    assignedBranchOverride: linkedPatient.assignedBranch || linkedPatient.assignedBranches?.[0] || surgery.branch,
-                });
+        if (linkedPatient && linkedPatient.role === 'patient') {
+            const patientPayload = buildPatientPayload({
+                body: req.body,
+                fallbackGuest: surgery,
+                assignedBranchOverride: linkedPatient.assignedBranch || linkedPatient.assignedBranches?.[0] || surgery.branch,
+            });
 
-                Object.assign(linkedPatient, patientPayload, {
-                    role: 'patient',
-                    status: 'inactive',
-                    isVerified: false,
-                });
-                if (linkedPatient.assignedBranch && (!Array.isArray(linkedPatient.assignedBranches) || linkedPatient.assignedBranches.length === 0)) {
-                    linkedPatient.assignedBranches = [linkedPatient.assignedBranch];
-                }
-                await linkedPatient.save();
+            Object.assign(linkedPatient, patientPayload, {
+                role: 'patient',
+                status: 'inactive',
+                isVerified: false,
+            });
+            if (linkedPatient.assignedBranch && (!Array.isArray(linkedPatient.assignedBranches) || linkedPatient.assignedBranches.length === 0)) {
+                linkedPatient.assignedBranches = [linkedPatient.assignedBranch];
             }
+            await linkedPatient.save();
         }
 
         await surgery.save();
@@ -10460,6 +10480,10 @@ app.post('/api/public/appointments/request', async (req, res) => {
             consentIpAddress: remoteIp,
         });
 
+        if (!matchedPatient) {
+            Object.assign(newSurgery, buildGuestPreRegistrationFields());
+        }
+
         await newSurgery.save();
 
         await AuditLog.create({
@@ -10477,14 +10501,33 @@ app.post('/api/public/appointments/request', async (req, res) => {
             branch: resolvedBranchName,
         });
 
-        await sendAppointmentReceivedEmail({
-            email: normalizedEmail,
-            name: normalizedName,
-            branch: resolvedBranchName,
-            date: slotCheck.parsedDate,
-            time: slotCheck.normalizedTime,
-            procedure: normalizedProcedure,
-        });
+        if (!matchedPatient && newSurgery.preRegistrationToken) {
+            await sendPreRegistrationEmail({
+                email: normalizedEmail,
+                name: normalizedName,
+                branch: resolvedBranchName,
+                date: slotCheck.parsedDate,
+                time: slotCheck.normalizedTime,
+                procedure: normalizedProcedure,
+                token: newSurgery.preRegistrationToken,
+                status: newSurgery.status,
+            });
+            await AuditLog.create({
+                action: 'PRE_REGISTRATION_LINK_SENT',
+                user: normalizedEmail,
+                role: 'guest',
+                details: `Pre-registration link sent immediately for website appointment ${newSurgery._id}.`,
+            });
+        } else {
+            await sendAppointmentReceivedEmail({
+                email: normalizedEmail,
+                name: normalizedName,
+                branch: resolvedBranchName,
+                date: slotCheck.parsedDate,
+                time: slotCheck.normalizedTime,
+                procedure: normalizedProcedure,
+            });
+        }
 
         if (matchedPatient?._id) {
             await notifyPatientAppointmentStatusChange({
@@ -10500,8 +10543,11 @@ app.post('/api/public/appointments/request', async (req, res) => {
         }
 
         res.status(201).json({
-            message: 'Appointment request submitted successfully. The clinic will email you once it is confirmed.',
+            message: matchedPatient
+                ? 'Appointment request submitted successfully. The clinic will email you once it is confirmed.'
+                : 'Appointment request submitted successfully. A pre-registration link has been sent to your email.',
             existingPatientMatched: Boolean(matchedPatient?._id),
+            preRegistrationEmailSent: !matchedPatient,
             surgery: newSurgery,
         });
     } catch (error) {

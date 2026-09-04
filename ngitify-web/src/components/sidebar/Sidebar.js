@@ -263,14 +263,17 @@ export default function Sidebar() {
             )}
 
             <aside
+                id="dashboard-sidebar"
                 ref={sidebarRef}
-                className={`${styles.sidebar} ${isExpanded ? styles.expanded : ''}`}
+                className={`${styles.sidebar} ${isPatient ? styles.patientSidebar : ''} ${isExpanded ? styles.expanded : ''}`}
             >
                 <button
                     type="button"
                     className={styles.toggleButton}
                     onClick={() => setIsExpanded((prev) => !prev)}
                     aria-label={isExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+                    aria-expanded={isExpanded}
+                    aria-controls="dashboard-sidebar"
                 >
                     <FaChevronRight className={styles.toggleIcon} />
                 </button>

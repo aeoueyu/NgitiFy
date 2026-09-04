@@ -860,6 +860,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    box-sizing: border-box;
 }
 
 .successIcon {
@@ -923,6 +924,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    box-sizing: border-box;
 }
 
 .wideModal {
@@ -1295,7 +1297,7 @@ select.formControl {
 
 @media (max-width: 768px) {
     .page {
-        padding: 16px;
+        padding: 16px 16px 96px;
     }
 
     .headerRow,
@@ -1387,5 +1389,54 @@ select.formControl {
 
     .detailItem dd {
         text-align: left;
+    }
+}
+
+@media (max-width: 600px) {
+    .page {
+        min-width: 0;
+        padding: 18px 12px 104px;
+    }
+
+    .pageTitle {
+        font-size: 22px;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+    }
+
+    .headerActions > *,
+    .actionRow > *,
+    .modalActions > * {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .modalOverlay {
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    .wideModal,
+    .viewerModal,
+    .successModalCard {
+        width: 100%;
+        max-width: none;
+        max-height: calc(100dvh - 12px);
+        border-radius: 20px 20px 0 0;
+    }
+
+    .modalHeader,
+    .modalBody,
+    .viewerBody {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .modalActions {
+        flex-direction: column-reverse;
+    }
+
+    .successModalCard {
+        padding: 28px 20px calc(24px + env(safe-area-inset-bottom));
     }
 }
