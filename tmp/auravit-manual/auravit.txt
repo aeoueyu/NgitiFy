@@ -1,0 +1,1996 @@
+COPYRIGHT INFORMATION
+
+The information contained in this User's Manual is intended solely for the authorized use,
+operation, demonstration, and evaluation of the AuraVit System. The contents of this
+manual may be subject to revision as the system is improved or updated.
+
+The developers shall not be held responsible for errors resulting from improper use of the
+system or actions performed outside the functions and procedures described in this
+manual.
+
+Patient and account information used during system testing and demonstration must be
+handled appropriately. Testers and users should not enter real or unauthorized Patient
+information into the system.
+
+
+
+1.0 GENERAL INFORMATION
+
+This User's Manual provides instructions for accessing and operating AuraVit, a digital
+reproductive-health platform designed to provide reproductive-health education,
+informational assistance, Human Support, appointment services, health tracking, clinical
+records, notifications, and privacy-management functions for Patients.
+
+The manual describes the major functions available to Patients and provides step-by-step
+procedures for using the AuraVit web and mobile applications.
+
+
+
+
+1.1 SYSTEM OVERVIEW
+
+AuraVit is a digital health platform integrated with reproductive-health education. The
+system is designed to provide accessible reproductive-health information and digital
+services through web and mobile applications.
+
+Patients can access educational materials through the Learn module, obtain informational
+assistance through AskAuri, communicate with Peer Educators through Human Support,
+schedule appointments with healthcare providers, review available clinical records, receive
+notifications, and manage their account and privacy settings.
+
+For mobile users, AuraVit also provides applicable health-tracking features such as the
+Symptoms & Cycle Tracker and Habit Tracker.
+
+AuraVit is intended to provide reproductive-health information, support, tracking,
+appointment,    and    authorized      record-management     services.   AskAuri    provides
+informational guidance and does not replace professional medical diagnosis or
+treatment.
+
+
+
+
+1.2 ORGANIZATIONAL STRUCTURE OF THE USER'S MANUAL
+
+This User's Manual is divided into the following major sections:
+
+General Information provides an overview of the AuraVit System, its purpose, intended user,
+and the organization of this manual.
+
+System Summary describes the general system configuration, supported platforms,
+requirements, and Patient access level.
+
+Getting Started provides instructions for accessing the AuraVit web application and
+installing or accessing the mobile application.
+
+Using the System provides detailed instructions for operating the functions available to
+Patients.
+
+
+
+2.0 SYSTEM SUMMARY
+
+This section provides an overview of the AuraVit System, including its configuration, software
+and hardware requirements, supported platforms, and Patient access level.
+2.1 SYSTEM CONFIGURATION
+
+AuraVit consists of a web application and a mobile application that provide Patients with
+access to reproductive-health information and digital health services.
+
+The web application provides Patients with access to applicable AuraVit functions through a
+supported web browser.
+
+The mobile application is primarily designed to provide Patients with convenient access to
+reproductive-health education, AskAuri, Human Support, appointments, clinical
+information, health tracking, notifications, and account-management functions.
+
+AuraVit uses account-based access to ensure that Patients can access functions and
+information associated with their authorized account.
+
+
+
+2.2 SOFTWARE AND HARDWARE REQUIREMENTS
+
+To access and use AuraVit, the Patient should have the following:
+
+For the Web Application
+
+   1. A desktop computer, laptop, tablet, or supported mobile device.
+
+   2. A stable internet connection.
+
+   3. A supported modern web browser such as:
+
+          o   Google Chrome
+
+          o   Microsoft Edge
+
+          o   Mozilla Firefox
+
+          o   Safari, where supported
+
+   4. A valid AuraVit account.
+
+For the Mobile Application
+   1. A compatible mobile device.
+
+   2. A stable internet connection through Wi-Fi or mobile data.
+
+   3. Sufficient device storage for installation.
+
+   4. The provided AuraVit mobile application package or installation link.
+
+   5. A valid AuraVit Patient account.
+
+
+
+
+2.3 USER'S ACCESS LEVEL
+
+Patient
+
+The Patient is the primary end-user of the AuraVit System. Patients are authorized to access
+the system's available reproductive-health education, informational assistance, support
+services, appointment services, health tracking, authorized health records, notifications,
+and account and privacy management functions.
+
+Access to information and system functions is limited to the permissions associated with
+the Patient's account.
+
+
+
+
+3.0 GETTING STARTED
+
+This section explains how Patients can access the AuraVit System through the web and
+mobile applications.
+
+
+
+3.1 WEB APPLICATION
+
+To access the AuraVit web application:
+
+   1. Launch a supported web browser.
+
+   2. Click the browser's address bar.
+   3. Enter the AuraVit web application address:
+
+https://auravit-cfsi.com/
+
+   4. Press Enter.
+
+   5. Wait for the AuraVit landing or login page to load.
+
+   6. Enter the provided Patient account credentials.
+
+   7. Select Login.
+
+   8. Wait for the Patient home page to load.
+
+
+
+
+Figure 1. AuraVit Web Application Landing Page
+
+
+
+
+3.2 MOBILE APPLICATION INSTALLATION
+
+Android Installation
+
+Android APK Link:
+   1. Open the provided AuraVit Android installation link.
+
+   2. Download the application package.
+
+   3. Open the downloaded installation file.
+
+   4. Allow installation from the appropriate source if required by the device.
+
+   5. Select Install.
+
+   6. Wait for the installation to complete.
+
+   7. Select Open to launch AuraVit.
+
+   8. Log in using the provided Patient account credentials.
+
+
+
+
+Figure 3. AuraVit Mobile Application Installation – Android
+
+
+
+
+iOS Installation
+
+iOS Application Link:
+   1. Open the provided AuraVit iOS installation link.
+
+   2. Follow the provided installation instructions.
+
+   3. Wait for the installation to complete.
+
+   4. Open the AuraVit application.
+
+   5. Log in using the provided Patient account credentials.
+
+
+
+
+Figure 3. AuraVit Mobile Application Installation - iOS
+
+
+
+4.0 USING THE SYSTEM
+
+This section provides instructions for operating the functions available to Patients in AuraVit.
+
+The available functions may vary depending on the platform being used and the permissions
+associated with the Patient's account.
+    4.1 PATIENT
+
+    The Patient is the primary user of the AuraVit application. The Patient interface provides
+    access to reproductive-health educational materials, AskAuri, Human Support,
+    appointments, clinical records, applicable health-tracking features, notifications, privacy
+    controls, and account settings.
+
+
+
+
+    4.1.1 LANDING PAGE                     1    2
+
+
+
+
+3
+4                                                                                                 5
+
+
+
+
+       1. Sign In – Allows existing users to access their AuraVit account.
+       2. Get Started – Directs new users to begin the registration process.
+       3. Get Started Securely – Provides another option for new users to begin creating an
+           account.
+       4. Welcome Back – Directs existing users to the login page.
+       5. Start Your Journey Today – Allows new users to proceed with getting started on the
+           AuraVit platform.
+
+    4.2 PATIENT REGISTRATION
+
+    4.2.1 Terms and Conditions
+
+    Before creating an AuraVit account, the user must review the Terms and Conditions, which
+    contain the policies, responsibilities, and conditions for using the platform.
+                                                                                               1
+
+
+
+                                                                           2
+        1. Accept – Confirms that the user has read and agreed to the Terms and Conditions
+           and allows them to proceed with account registration.
+        2. Decline – Indicates that the user does not agree to the Terms and Conditions. The
+           user cannot proceed with account registration.
+
+     4.2.2 Registering an Account
+                                      1
+
+
+
+
+2
+                                                                                                    4
+3
+
+
+
+
+                                                                                               13
+5
+                                                                                               14
+6
+ 7
+ 8                                                                                             15
+ 9
+10                                                                                             16
+
+11
+12
+17                                                                                            23
+18                                                                                            24
+19                                                                                            25
+20                                                                                            26
+21
+22
+
+
+
+
+                                                                            27
+
+                                                                            28
+                                                                            29
+                                                                            30
+
+
+
+
+     1. Registration Progress – Shows the current step of the account registration process.
+     2. Yes – Select if the user requires assistance with account setup.
+     3. No – Select if the user can complete the account setup independently.
+     4. Reason for Account Assistance – Allows the user to specify the reason assistance
+        is required, when applicable.
+     5. First Name – Enter the user's first name.
+     6. Last Name – Enter the user's last name.
+     7. Sex at Birth – Select the user's sex at birth.
+     8. Date of Birth – Enter the user's date of birth.
+     9. Mother's First Name – Enter the first name of the user's mother.
+     10. Father's First Name – Enter the first name of the user's father.
+     11. Birth Order – Enter or select the user's birth order.
+     12. Continue – Proceeds to the next registration step.
+     13. Email – Enter a valid email address to be associated with the AuraVit account.
+     14. Contact Number – Enter the user's active contact number.
+     15. Location Information – Select the user's Region, Province, City/Municipality, and
+        Barangay.
+16. Continue – Proceeds to the Parent/Guardian Details step.
+17. Guardian Full Name – Enter the full name of the Parent or Guardian.
+18. Relationship to Minor – Select the Parent or Guardian's relationship to the minor.
+19. Guardian Contact Number – Enter the Parent or Guardian's active contact number.
+20. Guardian Address – Enter the Parent or Guardian's address.
+21. Consent Checkbox – Confirms that the Parent or Guardian information is correct
+   and that consent is provided for the minor to use AuraVit services.
+22. Continue – Proceeds to the Account Setup step.
+23. Unique Identifier Code – Displays the unique identifier assigned to the user's
+   AuraVit account.
+24. Password – Enter a secure password that meets the displayed password
+   requirements.
+25. Confirm Password – Re-enter the password for confirmation.
+26. Continue – Proceeds to email verification.
+27. Verification Code – Enter the 6-digit OTP sent to the registered email address.
+28. Try Another Way – Provides an alternative verification option when available.
+29. Verify – Submits the entered verification code to verify the user's email.
+30. Cancel – Cancels the email verification process.
+                                            1
+
+    4.3 LOGGING IN
+
+
+
+
+                                                                                            3
+2
+                                                                                            5
+4
+
+                                                                                            6
+
+
+
+
+                                        7
+
+
+
+      1. Email – Enter the email address registered with the AuraVit account.
+      2. Password – Enter the account password.
+      3. Show/Hide Password – Displays or hides the entered password.
+      4. Keep Me Signed In – Keeps the user's account signed in on the current device.
+         Forgot Password? – Directs the user to the password recovery process.
+      5. Login – Submits the entered credentials and accesses the user's AuraVit
+         account.
+      6. Sign Up – Directs users without an existing account to the registration process.
+         4.4 FORGOT PASSWORD              1
+
+
+
+
+                                                                                                      5
+    2                                                                                                      6
+                                                                                                      7
+3
+                                                                                                      8
+
+4
+
+
+                                                                                                      13
+                                                                                                      14
+
+9
+
+
+10                                                                                                    15
+
+11
+
+    12
+           1. Email – Enter the email address registered with the AuraVit account.
+           2. Send – Sends a 6-digit verification code to the registered email address.
+           3. Back to Sign In – Returns the user to the Login page.
+           4. Try Another Way – Allows the user to use another available verification method.
+           5. Contact Number – Enter the contact number registered with the AuraVit account.
+           6. Send – Sends a 6-digit verification code to the registered contact number.
+           7. Try Another Way – Switches to another available verification method.
+           8. Back to Sign In – Returns the user to the Login page.
+           9. Verification Code – Enter the 6-digit verification code sent to the user's registered
+              email address or contact number.
+           10. Resend – Requests a new verification code when available.
+           11. Verify – Verifies the entered code and proceeds to password reset.
+           12. Cancel – Cancels the verification process.
+           13. New Password – Enter a new password that meets the displayed password
+              requirements.
+  14. Confirm New Password – Re-enter the new password for confirmation.
+  15. Done – Saves the new password and completes the password-reset process.
+                               1       2        3        4                         5
+4.5 PATIENT HOME PAGE                                                                   6
+
+
+
+
+  1. Learn – Opens the Educational Hub where the Patient can browse and read
+     reproductive-health educational content.
+  2. Ask Auri – Opens AskAuri for AI-assisted reproductive-health information and
+     support.
+  3. Records – Allows the Patient to access available clinical records and related health
+     information.
+  4. Appointment – Allows the Patient to view, book, and manage appointments with
+     Medical Professionals.
+  5. Notifications – Displays notifications and important updates related to the Patient's
+     AuraVit account and activities.
+  6. Profile – Opens the Patient's profile, account information, privacy options, and
+     available settings.
+
+4.6 LEARN
+    The Learn module provides Patients with access to reproductive-health educational
+    materials.                                       4                                       5
+                                   2     3
+                                                                                                 6
+                                                                                                 7
+                                                                                                 8
+                                                                                                 9
+                                                                                                  10
+1
+
+
+
+
+                                                                                                     11
+
+
+
+       1. Educational Articles – Displays the available reproductive-health educational
+          materials that the Patient can select and read.
+       2. Search – Allows the Patient to search for educational content using keywords.
+       3. Bookmarks – Opens the Patient's saved or bookmarked educational articles.
+       4. Back – Returns the Patient to the Educational Hub.
+       5. Article Options – Opens additional options available for the selected article.
+       6. Listen – Plays the available audio version of the educational article.
+       7. Text Size – Allows the Patient to adjust the article's text size for easier reading.
+       8. Share – Provides options for sharing the educational article.
+       9. Download as PDF – Generates or downloads a PDF copy of the selected article.
+       10. Related Articles – Displays other educational materials related to the currently
+          selected topic.
+       11. Audio Player – Provides playback controls for listening to the audio version of the
+          educational article.
+
+    4.7 ASK AURI
+
+    AskAuri provides AI-assisted reproductive-health information to Patients.
+1
+
+
+2
+
+3
+
+4                                                                                             9
+5
+
+
+6
+7
+                                                                                              10
+8                                                                                             0
+                                                                                                  11
+                                                                                                  0
+
+                         12
+    1. AskAuri Menu – Displays
+                      0        the AskAuri chat navigation panel.
+    2. Search Chats – Allows the Patient to search through existing conversations.
+    3. New Chat – Creates a new conversation with AskAuri.
+    4. Open – Displays the Patient's active or open conversations.
+    5. Archived – Displays conversations that have been archived.
+    6. Chat List – Displays the Patient's existing AskAuri conversations.
+    7. Archive Chat – Moves the selected conversation from the active chat list to the
+       archived section.
+    8. Delete Chat – Permanently deletes the selected conversation from the chat list.
+    9. I Understand – Confirms that the Patient understands that AskAuri provides
+       informational guidance and does not substitute for professional medical advice,
+       diagnosis, or treatment. The Patient must select this before the chat field and Send
+       button are enabled.
+    10. Chat Field – Allows the Patient to enter a question or message. This field remains
+       disabled until the Patient selects “I Understand.”
+    11. Send Button – Sends the entered message to AskAuri. This button remains
+       disabled until the Patient selects “I Understand.”
+           12. Human Support – Allows the Patient to access Human Support when assistance
+              from a Peer Educator is preferred or needed.
+
+        4.8 HUMAN SUPPORT
+
+        The Human Support function allows the Patient to communicate with an authorized Peer
+        Educator.
+
+
+
+
+1
+
+                                                                                                   7
+2
+
+
+3
+
+4
+    5
+
+
+
+
+    6                                                                                                  8
+
+                                                                                                       9
+
+
+
+
+                               10
+           1. Human Support Menu – Displays the Human Support chat navigation panel.
+           2. Search Chats – Allows the Patient to search through existing Human Support
+              conversations.
+           3. New Chat – Starts a new Human Support conversation with a Peer Educator.
+           4. Open – Displays the Patient's active or open Human Support conversations.
+           5. Archived – Displays Human Support conversations that have been archived.
+           6. Chat List – Displays the Patient's existing Human Support conversations.
+           7. I Understand – Confirms that the Patient understands the conditions for using
+              Human Support and enables the messaging functions.
+           8. Chat Field – Allows the Patient to type a message to the Peer Educator. This field
+              remains disabled until the Patient selects “I Understand.”
+             9. Send Button – Sends the entered message to the Peer Educator. This button
+                 remains disabled until the Patient selects “I Understand.”
+             10. AskAuri – Allows the Patient to return to the AskAuri chat interface.
+
+          4.9 APPOINTMENTS
+
+          The Appointments module allows Patients to request and manage appointments with
+          available healthcare providers.
+
+          4.9.1 BOOKING AN APPOINTMENT          1
+
+
+
+
+ 2
+
+ 3
+                                                                                            6
+
+
+ 4
+
+      5
+
+
+
+
+7
+                                                                                                8
+
+
+
+
+                                                                                            9
+
+
+     10
+
+
+
+11                                                                                          15
+
+
+ 12                                                                                         16
+                                                                                            17
+
+                                                                                            18
+
+13
+                                   14                                     19
+ 20                                                                                                   25
+
+
+21                                                                                                    26
+
+
+                                                                                                      27
+22
+23
+                                                                                                      28
+      24                                                                                 29
+
+
+
+
+                                                                              30
+
+
+
+
+           1. Book Appointment – Opens the appointment-booking form.
+           2. Confirm Location – Displays the selected clinic or healthcare facility where the
+              appointment will take place.
+           3. Visit Reason – Allows the Patient to select the purpose or type of healthcare service
+              for the appointment.
+           4. Schedule an Appointment – Submits the completed appointment request after all
+              required information has been provided.
+           5. Cancel – Cancels the current booking process.
+           6. Service Selection – Allows the Patient to select an available healthcare service,
+              such as Reproductive Health Consultation, Family Planning/Contraceptive
+              Services, or HIV Screening.
+           7. Select Date & Time – Allows the Patient to choose an available appointment date
+              and time based on the clinic's schedule.
+           8. Patient Details – Displays the Patient's personal and Parent/Guardian information
+              associated with the account.
+           9. Health Information – Opens the required health-information form that must be
+              completed before the appointment can be scheduled.
+10. Close – Closes the Health Information form.
+11. Health & Lifestyle – Allows the Patient to select applicable health or lifestyle
+   information and provide additional details when necessary.
+12. Medication Allergies – Allows the Patient to indicate applicable medication
+   allergies and provide additional information.
+13. Cancel – Cancels the Health Information process.
+14. Next – Saves the current information and proceeds to the next Health Information
+   step.
+15. Sexual Health History – Allows the Patient to provide applicable sexual-health
+   history information.
+16. HIV Status – Allows the Patient to indicate the applicable HIV status.
+17. Last Date Tested – Allows the Patient to enter or select the most recent HIV testing
+   date when applicable.
+18. Next – Proceeds to the Medication History section.
+19. Previous – Returns to the preceding Health Information section.
+   Currently on Hormonal Contraception – Allows the Patient to indicate the
+   applicable contraceptive method, if any.
+20. Past Surgeries – Allows the Patient to indicate applicable previous surgical
+   procedures.
+21. Current Medications – Allows the Patient to enter information about medications
+   currently being taken.
+22. Previous – Returns to the Sexual Health History section.
+23. Next – Proceeds to the Emergency Contact section.
+24. Emergency Contact Name – Enter the full name of the Patient's emergency
+   contact.
+25. Relationship – Select the emergency contact's relationship to the Patient.
+26. Contact Number – Enter the emergency contact's active contact number.
+27. Save – Saves the completed Health Information and Emergency Contact details.
+28. Previous – Returns to the Medication History section.
+          29. View My Appointments – Appears after a successful booking and directs the
+                Patient to the appointment list to review the newly scheduled appointment.
+
+        4.9.2 VIEWING AN APPOINTMENT                 1
+            3      4     5         6        7
+
+                                                                                                    12
+
+2
+
+    8
+9                                                                                                   13
+
+
+
+
+                                       10       11
+
+
+          1. My Appointments – Opens the Patient's appointment list.
+          2. Upcoming – Displays upcoming or pending appointments.
+          3. Approved – Displays appointments that have been approved by the Medical
+                Professional.
+          4. Assigned – Displays appointments that have been assigned to a Medical
+                Professional.
+          5. Cancelled – Displays appointments that have been cancelled.
+          6. Date Filter – Allows the Patient to filter appointments according to a selected date
+                range.
+          7. Search Appointments – Allows the Patient to search for a specific appointment.
+          8. Appointment List – Displays appointments matching the selected status, date, or
+                search criteria.
+          9. Appointment Card – Displays a summary of the appointment, including the clinic,
+                service, schedule, reference number, and current status.
+          10. View – Opens the complete details of the selected appointment.
+          11. Cancel – Allows the Patient to cancel an eligible appointment.
+                Close – Closes the Appointment Details window and returns to the appointment
+                list.
+       12. Appointment Details – Displays detailed information about the selected
+          appointment, including the service, clinic, reference number, appointment date and
+          time, assigned professional, current status, and consultation information.
+
+    4.10 CLINICAL RECORDS
+
+    The Clinical Records module allows Patients to review the clinical and consultation
+    information made available to their account.
+
+    4.10.1 VIEWING CLINICAL RECORDS
+                                1         2
+                                                                                                    6
+
+
+
+3                                                                                                   7
+
+4
+
+
+5
+
+
+
+
+                                                                    8
+                                                                             9
+       1. Records – Opens the Patient's Clinical Records section.
+       2. Search and Date Filter – Allows the Patient to search for specific records and filter
+          records according to a selected date range.
+       3. All – Displays all available clinical records regardless of category.
+       4. Category Tabs – Allows the Patient to filter clinical records according to a specific
+          service category, such as STI Testing/Screening or Reproductive Health
+          Consultation.
+       5. Clinical Record List – Displays the Patient's available clinical records, including the
+          type of service and relevant appointment information.
+       6. Close – Closes the Appointment Details window and returns to the Clinical Records
+          page.
+       7. Appointment Details – Displays the details associated with the selected clinical
+          record, including the service, clinic, reference number, category, and appointment
+          date and time.
+      8. Consultation – Displays the consultation information recorded by the Medical
+         Professional for the selected appointment.
+      9. Findings – Displays the clinical findings recorded by the Medical Professional for the
+         selected appointment.
+
+    4.11 PATIENT NOTIFICATIONS                                                         1
+
+
+
+
+                                                                                                  2
+
+
+
+                                                                                                  3
+
+5
+
+                                                                                                  4
+
+
+
+
+      1. Notification Icon – Opens the Patient Notifications page and indicates when new
+         notifications are available.
+      2. Pagination Controls – Allows the Patient to navigate between multiple pages of
+         notifications.
+      3. Notification List – Displays notifications received by the Patient, including the
+         notification type, details, and date and time received.
+      4. Delete Notification – Removes the selected notification from the Patient's
+         notification list.
+      5. Notification Categories – Allows the Patient to filter displayed notifications by
+         category, including All, Educational Content, Appointments, System
+         Announcements, and Data & Privacy.
+              4.12 PATIENT PROFILE AND SETTINGS
+
+              The Profile & Settings section allows the Patient to manage available account, preference,
+              accessibility, and privacy settings.      1
+
+
+
+
+          2
+                                                                                                            5
+
+                                                                                                            6
+          3
+                                                                                                            7
+                                                                                                           8
+      4
+                                                                                                                9
+                                                                                                           10
+
+ 11
+                                                                                                                    16
+
+
+
+12                                                                                                              17
+
+
+                                                                                                            18
+     13                                                                                                         19
+                                                                                                                20
+     14           15
+                                                                                                           21
+
+
+
+
+      22
+
+     23                                                                                                    24
+
+
+
+
+                                                                                                            25
+26
+
+
+27
+
+
+                                                                                             29
+
+
+                                                                                 28
+
+
+
+
+                   30                                                 31
+
+
+
+                                                                       32
+
+
+
+
+     1. Profile Icon – Opens the Patient's Profile & Settings page.
+     2. Account – Displays the Patient's account information and available account-
+        management options.
+     3. Log Out – Signs the Patient out of the AuraVit platform.
+     4. Personal Information – Displays the Patient's personal information and provides an
+        option to edit permitted details.
+     5. Address Information – Displays and allows the Patient to update available address
+        details.
+     6. Cancel – Discards changes made while editing account information.
+     7. Save Changes – Saves changes made to the Patient's account information.
+     8. Assisted Account – Displays information related to account assistance when the
+        Patient's account was created with assistance.
+     9. Account Information – Displays registered account details such as the Patient's
+        unique identifier, email address, and contact number.
+     10. Assisted Account Information – Displays available information about the person
+        associated with assisting the Patient's account.
+11. Password & Security – Opens the security settings for managing the Patient's
+   password, two-factor authentication, and active sessions.
+12. Change Password – Allows the Patient to update the current account password by
+   providing the required password information.
+13. Two-Factor Authentication (2FA) – Allows the Patient to enable or manage
+   additional account verification for improved security.
+14. Sign Out All Sessions – Signs the Patient's account out from all currently active
+   devices or sessions.
+15. Active Sessions – Displays devices or sessions currently signed in to the Patient's
+   AuraVit account and provides available session-management options.
+16. Health Info – Opens the Patient's stored health information.
+17. Health & Lifestyle – Displays and allows management of available health and
+   lifestyle information.
+18. Medication History – Displays the Patient's recorded medication, contraception,
+   allergy, and related medication information.
+19. Save Changes – Saves modifications made to the Patient's health information.
+20. Sexual Health History – Displays and allows management of the Patient's available
+   sexual-health information.
+21. Emergency Contact – Displays and allows management of the Patient's emergency
+   contact information.
+22. Notifications – Opens the Patient's notification preferences.
+23. Notification Settings – Allows the Patient to individually enable or disable available
+   notification categories.
+24. Disable All – Disables all available Patient notifications.
+25. Enable All – Enables all available Patient notifications.
+26. Content – Opens the Patient's educational content preferences.
+27. Content Preferences – Allows the Patient to select or deselect reproductive-health
+   topics based on their learning interests.
+28. Clear All – Removes all currently selected content preferences.
+       29. Select All – Selects all available educational content categories.
+       30. Accessibility – Opens the Patient's accessibility and display preferences.
+       31. Preferred Language – Allows the Patient to select an available preferred language
+            for supported platform content.
+       32. Text Size – Allows the Patient to adjust the displayed text size according to their
+            preferred viewing size.
+
+    4.13 DATA AND PRIVACY
+
+    The Data & Privacy section allows Patients to review and manage requests from Medical
+    Professionals for authorized access to protected information.
+
+    4.13.1 MANAGING DATA ACCESS REQUESTS
+                                                                    4
+
+
+
+
+1
+
+
+2                                                                                                5
+
+        3
+
+                                                                             6
+
+                                                                              7
+
+
+                                                                             8
+
+
+
+
+       1. Data & Privacy – Opens the Patient's data-access and privacy management
+            section.
+       2. Pending Requests – Displays data-access requests that are awaiting the Patient's
+            approval or decision.
+       3. Pending Request List – Displays the details of pending access requests. If no
+          requests are available, the system indicates that there are no pending access
+          requests.
+       4. Approved Access – Displays data-access requests that have been approved by the
+          Patient.
+       5. Approved Access Record – Displays information about an approved request,
+          including the requesting Medical Professional, requested data, purpose, approval
+          information, and reference details. Available access may also be revoked when
+          permitted.
+       6. Access History – Displays the history of Patient data-access authorizations.
+       7. Pagination Controls – Allows the Patient to navigate through multiple pages of
+          access-history records.
+       8. Access Record – Displays details of a Medical Professional's authorized access,
+          including the appointment, purpose, permission, access period, request date, and
+          current access status.
+
+     4.14 DEACTIVATE ACCOUNT
+
+
+
+                                                                                                 4
+1                                                                                            5
+                                                                                             6
+                                                                                             7
+ 2
+3                                                                                            8
+
+
+
+
+                                                                        9
+
+                                                                        10
+                                                                         11
+                                                                         12
+
+                                                                         13
+1. Deactivation Information – Displays important information about what happens
+   when the Patient's account is deactivated, including temporary account
+   suspension, access restrictions, notifications, and account lifecycle information.
+2. Keep My Account Active – Cancels the deactivation process and keeps the
+   Patient's AuraVit account active.
+3. Deactivate Account – Proceeds with the account deactivation process.
+4. Close – Closes the Security Verification window and cancels the current verification
+   process.
+5. Deactivation Reason – Allows the Patient to enter a reason for deactivating the
+   account.
+6. Current Password – Requires the Patient to enter the current account password for
+   identity verification.
+7. Cancel – Cancels the security verification and returns to the previous screen.
+8. Continue – Verifies the provided information and proceeds to email verification.
+9. Verification Code – Allows the Patient to enter the 6-digit verification code sent to
+   the registered email address.
+10. Resend Code – Sends a new verification code when the previous code was not
+   received or has expired.
+11. Try Another Way – Provides another available method for completing account
+   verification.
+12. Cancel – Cancels the email verification and account deactivation process.
+13. Confirm Deactivation – Submits the verification code and confirms the Patient's
+   account deactivation.
+            4.15 DELETE ACCOUNT
+
+
+        1
+
+
+
+
+                                                                                                          4
+                                                                                                          5
+2
+                                                                                                          6
+
+    3
+
+
+
+
+                                                                                   7
+
+                                                                                   8
+                                                                                   9
+                                                                                   10
+
+                                                                                   11
+
+              1. Delete Account Information – Displays important information about permanent
+                 account deletion, including the removal of account access and associated data.
+              2. Cancel – Cancels the deletion process and keeps the Patient's account active.
+              3. Delete – Proceeds with the permanent account deletion process and opens the
+                 identity verification step.
+              4. Password Field – Requires the Patient to enter the current account password to
+                 verify their identity before proceeding.
+              5. Cancel – Cancels the password verification process and returns to the previous
+                 screen.
+              6. Continue – Verifies the entered password and proceeds to the OTP verification step.
+              7. Verification Code – Allows the Patient to enter the 6-digit OTP sent to the registered
+                 email address.
+              8. Resend Code – Sends a new OTP if the Patient did not receive the original code or if
+                 it has expired.
+       9. Try Another Way – Provides another available option for completing account
+          verification.
+       10. Cancel – Cancels the OTP verification and permanent account deletion process.
+       11. Delete Account – Confirms the verification code and permanently deletes the
+          Patient's AuraVit account.
+
+    4.16 LOGOUT                                                  1
+
+
+
+
+2
+
+
+3
+
+
+
+
+       1. Close – Closes the logout confirmation prompt and allows the Patient to remain in
+          the current session.
+       2. Stay Logged In – Cancels the logout process and returns the Patient to the system
+          without ending the current session.
+       3. Log Out – Ends the Patient's current session and redirects the Patient to the AuraVit
+          login page.
+
+
+
+
+    5.0 Mobile User
+The Mobile User refers to a registered AuraVit user who accesses the platform through the
+mobile application. The AuraVit Mobile Application provides users with access to
+reproductive health education, AI-assisted and human support, appointment scheduling,
+digital health records, health tracking tools, notifications, and personal account and privacy
+management.
+
+The application provides health-monitoring features for users, including symptom tracking,
+mood logging, and habit tracking. Female users are additionally provided with a menstrual
+cycle tracker, which allows them to record menstrual period information and monitor their
+cycle history. Based on the information recorded by the user, the system may provide
+estimated menstrual cycle phases, fertile-window and ovulation information, and upcoming
+period predictions.
+
+AuraVit's health-tracking information is intended to support personal reproductive health
+awareness and monitoring and does not provide medical diagnosis or treatment. Cycle
+patterns and predictions are based on user-provided information and algorithmic estimates.
+                                      1
+5.1 Onboarding Screen
+
+
+
+
+                                                                                      4
+      2
+
+                                                                                      5
+
+                                  3
+                      1. Skip Button – Skips the remaining onboarding screens and redirects the Mobile
+                      User directly to the Login page.
+                      2. Next Button – Proceeds to the next onboarding screen, allowing the Mobile User
+                      to continue viewing the introduction to AuraVit.
+                      3. Next Button – Proceeds to the final onboarding screen, which introduces Auri,
+                      AuraVit’s AI health assistant, and provides options to create an account or sign in.
+                      4. Create Account Button – Redirects the Mobile User to the Registration page,
+                      where a new AuraVit account can be created.
+                      5. Sign In Button – Redirects the Mobile User to the Login page, where an existing
+                      AuraVit account can be accessed using registered credentials.
+
+                5.2 Mobile User Registration and Authentication
+
+                 10
+
+
+                                                                                                             7
+
+                                                                                                             8
+                                                                                                             8
+
+            1
+
+                                                                                                                 12
+        2
+
+
+    3                                                                                                            13
+
+                                                                                                                 14
+4
+                                                                                                             15
+
+
+5
+
+
+
+
+                                                                                   9
+                              6                                             10
+                                                                     11
+                                  21        22                   27
+
+
+
+
+ 16
+
+
+                                                                                                31
+17
+7                                                                                               32
+                                                                                                 33
+18                                                                                               34
+
+
+                                                                                                35
+ 19
+
+ 20
+
+
+                        23   24                   28
+                                       25    26        29   30
+
+
+      1. Yes Button – Indicates that the Mobile User requires assistance in creating or
+      managing their AuraVit account.
+      2. No Button – Indicates that the Mobile User does not require account setup
+      assistance and proceeds with the standard account registration process.
+      3. Sign In Link – Redirects users who already have an AuraVit account to the Login
+      page.
+      4. Terms and Data Policy Link – Allows the Mobile User to review AuraVit’s Terms
+      and Data Policy before proceeding with account registration.
+      5. Reason for Account Assistance Selection – Allows users requiring assistance to
+      specify the reason for requesting account setup assistance.
+      6. Continue Button – Proceeds to the next step after the account assistance
+      information has been completed.
+      7. First Name Field – Allows the Mobile User to enter their first name.
+      8. Last Name Field – Allows the Mobile User to enter their last name.
+      9. Date of Birth Field – Allows the Mobile User to enter or select their date of birth.
+10. Sex Assigned at Birth Selection – Allows the Mobile User to select their sex
+assigned at birth.
+11. Mother’s First Name Field – Allows the Mobile User to enter their mother’s first
+name as part of the required registration information.
+12. Father’s First Name Field – Allows the Mobile User to enter their father’s first
+name as part of the required registration information.
+13. Birth Order Field – Allows the Mobile User to enter their birth order.
+14. Continue Button – Proceeds to the next step of the sign-up process after the
+required personal information has been provided.
+15. Previous Button – Returns the Mobile User to the previous step of the sign-up
+process.
+16. Email Field – Allows the Mobile User to enter the email address that will be
+associated with their AuraVit account.
+17. Contact Number Field – Allows the Mobile User to enter a valid contact
+number.
+18. Location Fields – Allows the Mobile User to provide their location by selecting
+the appropriate Region, Province, City, and Barangay.
+19. Continue Button – Proceeds to the next step of the registration process after the
+required contact and location information has been provided.
+20. Previous Button – Returns the Mobile User to the previous registration step.
+21. Accompanist Full Name Field – Allows a Mobile User who requires account
+setup assistance to enter the full name of the person assisting them.
+22. Relationship with the Patient Field – Allows the relationship between the
+accompanist and the patient or Mobile User to be specified.
+23. Accompanist Address Field – Allows the address of the person assisting the
+Mobile User to be entered.
+24. Accompanist Contact Number Field – Allows the contact number of the
+person assisting the Mobile User to be entered.
+25. Continue Button – Proceeds to the next registration step after the required
+accompanist information has been provided.
+26. Previous Button – Returns the Mobile User to the previous step of the
+registration process.
+27. Password Field – Allows the Mobile User to create a password for their AuraVit
+account.
+28. Confirm Password Field – Requires the Mobile User to re-enter the created
+password to confirm that both password entries match.
+29. Continue Button – Proceeds to the email verification step after the required
+account credentials have been provided.
+30. Previous Button – Returns the Mobile User to the previous registration step.
+31. OTP Code Fields – Allows the Mobile User to enter the One-Time Password
+(OTP) sent to their registered email address for account verification.
+32. Resend Code – Allows the Mobile User to request a new OTP after the resend
+timer has expired.
+33. Try Another Way Link – Provides the Mobile User with another available method
+for completing account verification.
+34. Verify Button – Verifies the entered OTP and, when successful, proceeds with
+the completion of the Mobile User’s account setup.
+35. Back Button – Returns the Mobile User from the final verification step to the
+previous registration step.
+5.3 Mobile User Home
+
+                            1                              2
+
+
+
+
+                                                           7
+
+                                3
+                                            5     6
+                                        4
+
+
+      1. Menu Button – Opens the application menu, providing access to additional
+      AuraVit features, account options, and settings.
+      2. Notifications Button – Opens the Notifications page where the Mobile User can
+      view available system notifications and alerts.
+      3. Learn Button – Opens the Learn Hub, where the Mobile User can browse
+      reproductive health educational articles, resources, and other health-related
+      content.
+      4. Health Cards Button – Opens the Health Cards section, where the Mobile User
+      can access and manage available digital health cards and health-related records.
+      5. Ask Auri Button – Opens Auri, AuraVit’s AI-assisted reproductive health support
+      feature, where the Mobile User can submit health-related inquiries and access
+      available support services.
+      6. Track Button – Opens the Health Tracker, where the Mobile User can access
+      available personal health-monitoring features, including symptoms, mood, habits,
+      and menstrual cycle tracking for applicable female users.
+      7. Appointments Button – Opens the Appointment Management section, where
+      the Mobile User can book new appointments and view or manage existing
+      appointments.
+
+5.4 Learn – Reproductive Health Education          6        7
+                                        1
+                                                                     8
+
+
+                                                                         9
+                2                                                         10
+
+                                                                          11
+                                                                          12
+
+                        3
+
+
+                    4
+
+
+
+
+                                                                          13
+
+                    5
+
+
+
+
+      1. Bookmarked Articles Button – Opens the Bookmarked Articles section, where
+      the Mobile User can view all reproductive health articles they have previously
+      bookmarked or saved for later reading.
+      2. Search Health Content Field – Allows the Mobile User to search for reproductive
+      health articles and educational content using relevant keywords.
+      3. Bookmark Button – Allows the Mobile User to save an article to their bookmarked
+      content for easier access at a later time.
+      4. Article Card – Opens the selected reproductive health article and displays its
+      complete educational content.
+      5. Learn Navigation Button – Provides access to the Learn Hub from the
+      application's bottom navigation menu.
+      6. Back Button – Returns the Mobile User from the opened article to the previous
+      Learn Hub page.
+      7. Play Button – Starts the audio playback of the selected article, allowing the
+      Mobile User to listen to the article content.
+      8. Article Options Button – Opens additional options and controls available for the
+      currently displayed article.
+      9. Bookmark/Unsave Option – Allows the Mobile User to save the article to their
+      bookmarks or remove it from saved content if it has already been bookmarked.
+      10. Font Size Option – Allows the Mobile User to adjust the article's text size
+      according to their preferred reading size.
+      11. Share Article Option – Allows the Mobile User to share the selected educational
+      article through available sharing options on the mobile device.
+      12. Download PDF Option – Allows the Mobile User to download a PDF copy of the
+      selected article for later reference.
+      13. Media Player – Appears when the Mobile User activates the Play Button and
+      provides audio playback controls for listening to the article content, including
+      playback navigation, play/pause, and playback speed controls.
+
+5.5 AskAI & Human Support
+                                      4     10
+                          3                          11     12
+                                                                   13
+                     2
+
+
+                                                                     14
+
+                 5
+                                                                        15
+               6
+
+             7
+                                                                          16
+             8
+                     9
+
+
+
+
+                 1
+
+
+
+
+1. Ask Auri Navigation Button – Provides access to the AskAuri interface from the
+   application's bottom navigation menu.
+2. Menu Button – Opens the navigation menu for the AskAuri chat section.
+3. Open Chats – Displays the Patient's active or open AskAuri conversations.
+4. Archive – Opens the archived AskAuri conversations.
+5. Human Support Button – Allows the Patient to access Human Support and
+   communicate with an authorized Peer Educator.
+6. Search Chats – Allows the Patient to search through existing conversations using
+   keywords.
+7. Chat List – Displays the Patient's existing AskAuri conversations and their current
+   status.
+8. Archive Chat – Moves the selected conversation from the active chat list to the
+   archived section.
+9. Delete Chat – Permanently deletes the selected AskAuri conversation from the chat
+   list.
+10. Back Button – Returns the Patient to the previous screen or section.
+11. New Chat – Starts a new Human Support conversation with a Peer Educator.
+12. Open Chats – Displays the Patient's active or open Human Support conversations.
+   13. Archive – Opens the archived Human Support conversations.
+   14. Search Chats – Allows the Patient to search through existing Human Support
+      conversations.
+   15. Chat List – Displays the Patient's existing Human Support conversations and their
+      current status.
+   16. Delete Chat – Permanently deletes the selected Human Support conversation from
+      the chat list.
+
+5.6 Digital Health Cards / Records      7
+
+
+
+
+                6
+                                                                        8
+               5
+                   4
+                       3
+
+
+                   2
+
+
+
+
+                                                                        9
+
+
+                       1
+
+
+
+
+   1. Health Cards Navigation Button – Tap to navigate directly to the Digital Health
+      Cards / Records section.
+   2. Health Card Entry – Displays the health record summary including service type,
+      reference code, clinic branch, attending doctor, and date/time.
+   3. View Record – Opens the Record Details modal to view further information about
+      the specific health card.
+   4. Verification Status – Indicates if the health record has been verified on the
+      blockchain.
+  5. Category Filter Tabs – Filter health cards by service category (e.g., All, Family
+     Planning, STI Screening).
+  6. Search Bar – Allows users to search through saved health records using keywords
+     or reference codes.
+  7. Date Filter – Filter or arrange health records based on specific date ranges or
+     timestamps.
+  8. Close Button – Closes the active Record Details modal view.
+  9. Results Button – Tap to view detailed laboratory or consultation test results
+     associated with the record.
+
+5.7 Appointment Management
+
+
+
+                               6                            7
+
+                                                                5
+                               4
+                                                             3
+
+
+                           2
+
+
+
+
+                                                             1
+
+
+
+
+  1. Appointments Navigation Button – Tap to navigate directly to the Appointments
+     section.
+  2. Appointment Card / Entry – Displays upcoming or active appointment details
+     including service type, reference ID, status (e.g., Pending Approval, Confirmed),
+     clinic branch, doctor name, and scheduled date/time.
+  3. Category Filter Tabs – Filter appointments by service type (e.g., All, Reproductive
+     Health Consultation, Family Planning).
+       4. Search Bar – Allows users to search through appointments using keywords or
+          reference codes.
+       5. Date Filter – Filter or organize appointments based on specific calendar dates or
+          date ranges.
+       6. Book Appointment Button – Tap to initiate a new appointment request.
+       7. Appointment History Button – Tap to view past, completed, or canceled
+          appointment records.
+
+    5.7.1 Book Appointment                                   3
+                                       2
+
+
+
+
+                                                                                              4
+
+
+
+
+1
+
+
+
+                                                                                              5
+                                       9
+
+
+    6
+
+
+7
+
+
+
+
+8                                                                                                    13
+
+
+
+
+                                                                                                14
+
+                                                                                                15
+
+
+                          10
+                                              11
+                                                     12
+        1. Clinic Location Selection Card – Displays selected clinic details including branch
+           name, address, location hours, contact number, and map preview.
+        2. Select Visit Reason Dropdown / Section – Allows users to select the primary
+           service needed (e.g., Reproductive Health Consultation, Family Planning /
+           Contraceptive Services, STI Testing / Screening).
+        3. Select Date & Time Slot Picker – Interactive calendar and time slot selector
+           organized by Morning and Afternoon schedules.
+        4. Patient Details Section – Displays the patient's autofilled profile information
+           including Full Name, Date of Birth, Email, and Phone Number.
+        5. Health Information Status Indicator – Shows the completion status of the required
+           health history profile.
+        6. Health Information Form Header – Navigation screen to manage personal health
+           information, medical history, and emergency contact details.
+        7. Edit Button – Tap to enable editing of the user's recorded health information and
+           medical history.
+        8. Health Information Section – Displays general medical conditions (e.g., Obesity,
+           Diabetes) and recorded Medication Allergies.
+       9. Sexual and STI History Section – Records history or status regarding STIs, HIV
+             status, and related conditions.
+       10. Medication History Section – Records details on past surgeries, current
+             medications, and administration history.
+       11. Schedule an Appointment Button – Submits the appointment details and opens
+             the confirmation summary modal.
+       12. Cancel Button – Aborts the booking flow and returns to the main Appointments
+             screen.
+       13. Confirm Appointment Modal – Displays a summary of the booking request,
+             including Reference code, Patient, Clinic, Service, and Date & Time.
+       14. Confirm Appointment Button – Finalizes and submits the appointment request to
+             the clinic.
+       15. Modal Cancel Button – Closes the confirmation summary modal without finalizing
+             the booking.
+
+    5.8 Health Tracker – Symptoms and Mood
+                              3                    5              9
+
+
+
+
+2
+
+
+
+
+4
+
+
+                                                                                              10
+
+
+
+
+         1                                             6
+                                  8            7
+
+       1. Track Navigation Button – Tap to navigate directly to the Health Tracker section.
+   2. Symptoms and Moods Module Card – Access entry point to log, review, and
+      analyze daily symptoms, moods, and physical health indicators.
+   3. Interactive Calendar View – Calendar view to inspect or select specific log dates
+      across months.
+   4. Edit Day – Selects or edits logged data for a specific day within the cycle timeline.
+   5. Close Selected Day View Button – Closes the detailed daily overview card for the
+      selected date.
+   6. Add Symptoms and Mood – Opens the selection logging screen to record new
+      symptoms and mood entries.
+   7. Ask Auri Insight Tile – Quick prompt to consult AskAuri AI for questions regarding
+      current symptoms or tracking patterns.
+   8. Daily Health Articles / Educational Resources – Recommended educational
+      content tailored to current tracked data and health insights.
+   9. Symptoms and Mood Selection – Categorized selection screen (e.g., General
+      Health, Reproductive / Cycle-Related Symptoms) for logging specific physical
+      symptoms and emotional states.
+   10. Edit Period Dates Button – Tap to adjust or update logged period start and end
+      dates on the calendar timeline.
+
+5.9 Menstrual Cycle Tracker – Female Users
+                                                 2
+
+
+
+
+                                                                         3
+
+
+
+
+                                                                         4
+
+
+
+
+                 1
+
+
+
+
+   1. Cycle History Card – Access entry point on the Health Tracker screen to view
+      detailed past cycle records and menstrual trends over time.
+   2. Back Button – Tap to return to the main Health Tracker overview screen.
+   3. Timeframe Filter Tabs – Filter cycle history by specific timeframes (e.g., Last 3
+      Cycles, Last 6 Cycles, Last Year).
+   4. Cycle Record Item – Displays individual cycle data, including total cycle duration in
+      days, date range, and color-coded status indicators (Period, Fertile Window,
+      Ovulation).
+
+
+
+5.10 Habit Tracker
+                                              2
+
+
+
+                                                                      3
+
+                                                                          4
+
+                                                                              5
+
+
+                                                                              6
+
+
+
+
+                 1
+
+
+
+
+   1. Habits Card – Access entry point on the Health Tracker screen to view and manage
+      daily habits and routines.
+   2. Back Button – Tap to return to the main Health Tracker overview screen.
+   3. Search Bar – Search through created habits using keywords.
+   4. Create New Habit Button – Opens the configuration flow to set up a new daily or
+      weekly habit.
+   5. Report Button – View detailed completion statistics and progress analytics for
+      tracked habits.
+   6. Check In Button – Tap to log completion or progress for a specific habit on the
+      current day.
+
+5.11 Notifications
+                             1
+
+                             2
+
+                             3
+
+                                                             5
+                             4
+
+
+
+
+   1. Back Button – Tap to exit the Notifications screen and return to the previous view.
+   2. Search Bar – Allows users to search through received notifications using keywords.
+   3. Category Filter Tabs – Filter notifications by category (e.g., All, Educational
+      Content, Appointments).
+   4. Notification Card – Displays notification details including icon type, title, message
+      summary, and timestamp.
+   5. Delete Notification Button – Tap to remove a specific notification from the list.
+
+5.12 Profile, Settings, Data & Privacy
+                                        1
+
+
+
+
+                            2
+
+                            3
+
+                            4
+
+                            5
+                            6
+
+                            7
+                            8
+
+                            9
+
+                           10
+
+
+
+
+1. Close Settings Button – Tap to close the Settings drawer menu and return to the
+   main application interface.
+2. Profile – Access personal account details, display name, and profile management
+   options.
+3. Notifications Preferences – Manage push notification settings, alerts, and
+   communication preferences.
+4. Content Preferences – Customize preferred topics, language, and content filters
+   for educational resources.
+5. Health Information – Review and update personal medical history, health
+   conditions, and emergency details.
+6. Accessibility – Adjust application accessibility settings such as text size, high
+   contrast mode, or screen reader support.
+7. Data & Privacy – Control data sharing permissions, view privacy policies, and
+   manage personal data consent settings.
+8. Access History – View log activity, authorized data requests, and account security
+   access records.
+9. Log Out – Securely log out of the current AuraVit account session.
+        10. Deactivate Account – Request permanent deactivation or removal of the user
+           profile and associated data.
+        1.12.1 Profile                          5                        9
+                           2
+
+
+1
+
+
+
+
+                                                                                                 14
+
+
+
+
+3
+
+
+
+                                                                                                 15
+    4
+
+
+6
+                                                                                                 16
+    7
+
+                           8
+                                                             10     11       12   13
+
+
+        1. Personal Information Section – Displays user basic profile details including Date
+           of Birth, Sex Assigned at Birth, and Location (Region, Province, City/Municipality,
+           Barangay).
+        2. Edit Button / Cancel Button (Personal Information) – Tap to enable editing or
+           cancel modifications to the Personal Information section.
+        3. Location Input Fields – Dropdown menus and fields to specify or update Region,
+           Province, City/Municipality, and Barangay.
+        4. Save Changes Button (Personal Information) – Saves and updates any modified
+           personal information fields.
+        5. Edit Button / Cancel Button (Account Information) – Tap to enable editing or
+           cancel modifications to the Account Information section.
+        6. Account Information Section – Displays user contact details including Unique
+           Identifier Code, Email, and Contact Number.
+7. Contact Details Fields – Input fields for updating user Email address and Contact
+   Number.
+8. Save Changes Button (Account Information) – Saves and updates modified
+   contact details.
+9. Edit Button / Cancel Button (Change Password) – Tap to expand password
+   modification fields or cancel changing the password.
+10. Current Password Field – Enter the existing password for authentication before
+   changing details.
+11. New Password Field – Enter the new replacement password.
+12. Confirm Password Field – Re-enter the new password to confirm accuracy.
+13. Change Password Button – Submits the password update request.
+14. Two-Factor Authentication Toggle Switch – Enables or disables 2FA security layer
+   for account authentication.
+15. Revoke Session Button – Terminates active account sessions on specific
+   secondary devices.
+16. Logout All Sessions Button – Immediately logs out the account across all active
+   logged-in devices and platforms.
+1.12.2 Notification Preference
+
+
+                                 1
+
+
+
+                                                              2
+
+                                                               3
+
+
+                                                               4
+
+                                                               5
+1. Back Button – Tap to return to the main Settings menu.
+2. Content Notifications Toggle – Enables or disables alerts for new learning
+   materials, articles, and educational content regarding reproductive health.
+3. Data Privacy Notifications Toggle – Enables or disables updates and information
+   regarding workshops, webinars, and community events.
+4. Announcement Notifications Toggle – Enables or disables important system
+   updates, news, and official announcements from AuraVit.
+5. Appointment Notifications Toggle – Enables or disables reminders and status
+   updates regarding scheduled appointments.
+1.12.3 Content Preference
+
+                               1
+
+
+
+                                                             2
+
+
+                                                            3
+
+                                                             4
+
+                                                             5
+
+
+                                                             6
+
+
+                                                             7
+
+
+                                                             8
+
+
+
+1. Back Button – Tap to return to the main Settings menu.
+2. Menstrual Wellness and Hygiene Toggle – Enables or disables content and
+   resources related to menstrual wellness and hygiene.
+3. Contraception Toggle – Enables or disables content and resources related to
+   contraception.
+4. Fertility Basics Toggle – Enables or disables content and resources related to
+   fertility basics.
+    5. STI Awareness Toggle – Enables or disables content and resources related to STI
+       awareness.
+    6. Mental Health in Reproductive Care Toggle – Enables or disables content and
+       resources related to mental health in reproductive care.
+    7. Male Reproductive Health Toggle – Enables or disables content and resources
+       related to male reproductive health.
+    8. Pregnancy Prevention Toggle – Enables or disables content and resources related
+       to pregnancy prevention.
+    1.12.4 Health Information
+                                         3
+                                                               4
+
+1
+
+
+
+
+2
+
+
+
+
+                                                                                             5
+
+                                                                                             6
+
+                                                                                             7
+
+
+
+                                                                                             8
+
+
+                                                                                 9
+    1. Back Button – Tap to return to the main Settings menu.
+    2. Health Information Selection – Select or toggle medical conditions (e.g., Diabetes,
+       Heart Disease), Medication Allergies, and Lifestyle Indicators.
+    3. Sexual and STI History Selection – Record history of STIs, HIV status, and details
+       regarding genital infections or related conditions.
+    4. Medication History Selection – Specify current or past hormonal contraception,
+       past surgical history, and current medications.
+5. Emergency Contact Full Name Input Field – Enter the full name of the designated
+   emergency contact person.
+6. Relationship Dropdown Menu – Select the relationship to the emergency contact
+   (e.g., Parent, Spouse, Guardian).
+7. Contact Number Input Field – Enter the primary phone number of the emergency
+   contact person.
+8. Apply Button – Saves and applies any updated health information and emergency
+   contact details.
+9. Cancel Button – Discards any unsaved changes made to the health information
+   form.
+1.12.5 Accessibility
+
+                                1
+
+
+                                                             2
+
+
+                                                              3
+
+
+                                                                  4
+
+
+
+
+1. Back Button – Tap to return to the main Settings menu.
+2. Dark Mode Toggle – Toggle to switch between light theme and darker UI theme to
+   reduce eye strain in low-light environments.
+3. Preferred Language Dropdown – Select your preferred language (e.g., English) for
+   the application interface.
+4. Text Size Selector – Adjust the application font size (e.g., Medium) for enhanced
+   readability across all screens.
+1.12.6 Data & Privacy
+
+                              1
+
+
+
+
+                                                                2
+                             3
+
+
+
+
+1. Back Button – Tap to return to the main Settings menu.
+2. Approve Button – Tap to grant data access permission to the requesting medical
+   professional for the specified duration.
+3. Deny Button – Tap to reject the data access request from the medical professional.
+1.12.7 Access History
+
+                                 1
+
+
+
+
+                                                            2
+
+
+
+
+1. Back Button – Tap to return to the main Settings menu.
+2. Access Record Entry – Displays detailed records of data access requests from
+   medical professionals, including Professional ID, Service type, Appointment
+   Reference, Duration, Access Period, and current status (e.g., EXPIRED, ACTIVE).
+1.12.8 Deactivate Account
+
+
+
+
+                                                                                     4
+
+
+
+
+                                                                                     5
+
+
+                                                                                     6
+
+
+                                                                                     7
+
+
+       1
+
+
+
+
+                                    2                   3
+
+1. Deactivate Account Button – Initiates the account deactivation workflow.
+2. Cancel Button – Cancels the deactivation process and returns to the Account
+   Lifecycle Policy screen.
+3. I Understand Button – Confirms understanding of the deactivation terms and
+   proceeds to password verification.
+4. Close Button – Closes the verification modal without deactivating the account.
+5. Reason for Deactivation Field – Optional text input to provide feedback on why you
+   are deactivating your account.
+6. Show / Hide Password Icon – Toggles visibility of the entered password characters.
+7. Enter Your Password Field – Text input field to enter account password for security
+   verification.
+8. Verify Password Button – Authenticates the password and finalizes account
+   deactivation.
+   1.12.9 Delete Account in Profile
+
+
+
+
+                                                                              4
+
+
+                     3                                                        5
+
+                         2
+
+
+                                                                          6
+                     1
+
+
+
+   1. Delete Account Button – Initiates the permanent account deletion process under
+      the Danger Zone section.
+   2. Continue Button – Confirms acknowledgement of the account deletion warning
+      and proceeds to password verification.
+   3. Cancel Button – Cancels the account deletion process and closes the modal.
+   4. Show / Hide Password Icon – Toggles visibility of the entered password characters.
+   5. Continue Button – Authenticates the entered password to permanently complete
+      the account deletion process.
+   6. Cancel Button – Cancels password verification and returns to the previous screen
+      without deleting the account.
+
+5.13 Logout
+                                                              1
+                          2
+
+
+
+
+1. Log out Button – Confirms logout request and signs the user out of their AuraVit
+   account session.
+2. Cancel Button – Cancels the logout request and returns to the Settings menu view.
+
