@@ -9,7 +9,7 @@ from docx.shared import Inches, Pt, RGBColor
 from pathlib import Path
 
 
-OUT = Path('output/documents/NGITIFY_Patient_User_Manual_Web_and_Mobile.docx')
+OUT = Path('output/documents/NGITIFY_Patient_User_Manual_Web_and_Mobile_Revised_v2.docx')
 OUT.parent.mkdir(parents=True, exist_ok=True)
 
 BLUE = '01538B'
@@ -327,7 +327,7 @@ r = p.add_run('Dentime Dental Clinic')
 r.bold = True
 r.font.size = Pt(13)
 r.font.color.rgb = RGBColor.from_string(BLUE)
-p = doc.add_paragraph('Manual version: 1.0  |  Prepared: September 2026')
+p = doc.add_paragraph('Manual version: 1.2  |  Revised: September 2026')
 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 p.runs[0].font.color.rgb = RGBColor.from_string(MUTED)
 doc.add_page_break()
@@ -342,7 +342,7 @@ doc.add_heading('How to Use This Draft', level=1)
 add_bullets([
     'Replace each “INSERT SCREENSHOT HERE” box with the requested web or mobile screenshot.',
     'Keep the figure caption below each screenshot. Renumber figures only if you add or remove images.',
-    'Replace bracketed deployment details such as the production web address and mobile installation link.',
+    'Replace bracketed deployment details such as the production web address, Android APK download link, and iOS TestFlight public link.',
     'After inserting screenshots, update the table of contents in Microsoft Word and check page breaks.',
     'Use a training account with fictional information when capturing screenshots.',
 ])
@@ -380,12 +380,13 @@ doc.add_heading('2. System Summary', level=1)
 doc.add_heading('2.1 System Overview', level=2)
 doc.add_paragraph('NgitiFy is the patient-facing digital service of Dentime Dental Clinic. The web application supports public clinic information, online appointment requests, pre-registration, account access, and a full patient portal. The mobile application provides convenient access to the same patient account and adds a guided first-login onboarding flow.')
 doc.add_heading('2.2 Requirements', level=2)
-add_matrix(['Web Application', 'Mobile Application'], [
-    ('Desktop, laptop, tablet, or phone with a modern browser', 'Compatible Android or iOS mobile device'),
-    ('Stable internet connection', 'Wi-Fi or mobile-data connection'),
-    ('Current Chrome, Edge, Firefox, or Safari', 'Sufficient storage and the clinic-provided installation link/package'),
-    ('Active patient account for the portal', 'Active patient account'),
-], [3.25, 3.25])
+add_matrix(['Website', 'Android', 'iOS'], [
+    ('Desktop or laptop computer', 'Compatible Android phone', 'Compatible iPhone'),
+    ('Stable internet connection', 'Wi-Fi or mobile-data connection', 'Wi-Fi or mobile-data connection'),
+    ('Current Chrome, Edge, Firefox, or Safari', 'Sufficient storage and permission to install an APK', 'TestFlight installed from the App Store'),
+    ('Production website address', 'Clinic-provided NgitiFy APK download link', 'Clinic-provided TestFlight public link'),
+    ('Active patient account for the portal', 'Active patient account', 'Active patient account'),
+], [2.2, 2.15, 2.15])
 doc.add_heading('2.3 Patient Access Level', level=2)
 doc.add_paragraph('Patients may view and manage only the information and functions associated with their authenticated account. Patient-entered logs may be edited by the patient. Clinic records, dentist recommendations, odontograms, and approved radiograph findings are read-only in the patient applications.')
 doc.add_heading('2.4 Web and Mobile Navigation', level=2)
@@ -398,17 +399,30 @@ add_matrix(['Area', 'Web', 'Mobile'], [
 # 3
 doc.add_heading('3. Getting Started', level=1)
 add_procedure('3.1 Open the Public Website', 'Access clinic information or start an appointment request.', [
+    'Use a desktop or laptop computer. The patient website instructions in this manual are intended for these devices only.',
     'Open a supported web browser.', 'Enter [INSERT PRODUCTION WEB ADDRESS] in the address bar and press Enter.',
     'Use Home, About, Services, Contact Us, or Appointment in the top navigation.',
-    'On a smaller screen, select the menu icon to display the navigation links.',
     'Select LOGIN when you are ready to access the patient portal.'
-], 'NgitiFy public website home page and navigation')
-add_procedure('3.2 Install the Mobile Application', 'Install NgitiFy on a compatible patient device.', [
-    'Open the clinic-provided NgitiFy installation link: [INSERT ANDROID/APK OR APP STORE LINK].',
-    'Download the installation package or open the applicable app-store listing.',
-    'If Android asks for permission to install from the source, review the source and allow it only when it was supplied by the clinic.',
-    'Select Install and wait for the process to finish.', 'Select Open, or tap the NgitiFy icon from the device home screen.'
-], 'NgitiFy mobile installation or app icon', note=('Security', 'Install NgitiFy only from a link or package supplied by Dentime Dental Clinic.', 'warn'))
+], 'NgitiFy public website on a desktop or laptop')
+add_procedure('3.2.1 Install NgitiFy on Android Using the APK Link', 'Download and install the Android application using the secure APK link provided by Dentime Dental Clinic.', [
+    'On the Android phone, open [INSERT NGITIFY ANDROID APK DOWNLOAD LINK].',
+    'Tap Download or Download APK. If the browser displays a warning about downloading an APK file, continue only when the link was provided by Dentime Dental Clinic.',
+    'When the download finishes, open the download notification or the Downloads folder, then tap the NgitiFy APK file.',
+    'If installation is blocked, tap Settings and allow Install unknown apps for the browser or file manager used to open the APK. Return to the installer afterward.',
+    'Tap Install and wait for the installation to finish.',
+    'Tap Open, or find and tap the NgitiFy icon on the device.',
+    'When the NgitiFy login screen appears, enter the active patient account credentials.'
+], 'Android APK download, security permission, installation, and NgitiFy sign-in', note=('Install securely', 'Use only the current APK link supplied by Dentime Dental Clinic. After installation, you may turn off the Install unknown apps permission again. When an updated version is released, download the new APK from the clinic link and install it over the existing application.', 'warn'))
+add_procedure('3.2.2 Install NgitiFy on iOS Through TestFlight', 'Install the iOS beta using the public TestFlight invitation.', [
+    'On the iPhone, open the App Store.',
+    'Search for TestFlight, then tap Get or the download icon.',
+    'Open [INSERT NGITIFY TESTFLIGHT PUBLIC LINK] or scan [INSERT NGITIFY TESTFLIGHT QR CODE].',
+    'On the invitation page, tap View in TestFlight or Start Testing.',
+    'In TestFlight, tap Accept if the invitation has not yet been accepted.',
+    'Tap Install beside NgitiFy and wait for installation to finish.',
+    'Tap Open, then sign in using the active NgitiFy patient account.',
+    'When a newer beta build is available, open TestFlight and tap Update beside NgitiFy.'
+], 'iOS TestFlight public invitation and NgitiFy installation', note=('TestFlight availability', 'The public link may stop accepting testers when its limit is reached or when the clinic disables it. TestFlight beta builds also expire, so install the latest build provided by the clinic.', 'warn'))
 add_procedure('3.3 Request an Appointment from the Public Website', 'Send a booking request before or without signing in.', [
     'Open the Appointment page.', 'Enter First Name, Last Name, Phone, Email, Date of Birth, and Gender.',
     'Select the Branch. Available dates and times are based on that branch.',
@@ -718,7 +732,8 @@ for idx, caption in enumerate([
     'Web appointments and booking', 'Web cancel/reschedule', 'Web daily oral-health log',
     'Web calendar and trends', 'Web Recommended Visit Window', 'Web education library/article',
     'Web NgitiBot/history', 'Web EMR tabs', 'Web notifications', 'Web profile/edit',
-    'Web settings', 'Web activity logs/logout', 'Mobile installation/login', 'Mobile onboarding',
+    'Web settings', 'Web activity logs/logout', 'Android APK download/installation/login',
+    'iOS TestFlight public-link installation/login', 'Mobile onboarding',
     'Mobile navigation/home', 'Mobile visits/booking', 'Mobile Health tabs', 'Mobile records/X-Ray',
     'Mobile NgitiBot', 'Mobile notifications', 'Mobile profile/edit', 'Mobile settings/activity/logout'
 ], 1):
