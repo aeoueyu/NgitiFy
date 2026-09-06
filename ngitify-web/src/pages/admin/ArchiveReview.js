@@ -10,6 +10,7 @@ import { authFetch } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { getArchiveRetentionInfo, formatLifecycleDateTime } from '../../utils/lifecycleHistory';
 import LifecycleActionModal from '../../components/common/LifecycleActionModal';
+import RowsPerPageInput from '../../components/common/RowsPerPageInput';
 import scheduleStyles from '../../styles/shared/SchedulePage.module.css';
 import wideTable from '../../styles/wideTable.module.css';
 import styles from '../../styles/admin/ArchiveReview.module.css';
@@ -417,11 +418,8 @@ export default function ArchiveReview() {
                 <div className={styles.paginationRow}>
                     <label className={styles.rowsPerPageLabel}>
                         Rows per page
-                        <input
-                            type="number"
+                        <RowsPerPageInput
                             min="1"
-                            step="10"
-                            inputMode="numeric"
                             value={rowsPerPage}
                             onChange={handleRowsPerPageChange}
                             className={styles.rowsPerPageInput}

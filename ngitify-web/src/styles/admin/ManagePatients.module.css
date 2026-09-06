@@ -91,6 +91,20 @@
 
 .filterSelect:focus { border-color: #01538b; box-shadow: 0 0 0 4px rgba(1, 83, 139, 0.1); }
 
+input.filterSelect[type='number'] {
+    min-width: 0;
+    padding-right: 20px;
+    appearance: textfield;
+    -moz-appearance: textfield;
+    background-image: none;
+}
+
+input.filterSelect[type='number']::-webkit-inner-spin-button,
+input.filterSelect[type='number']::-webkit-outer-spin-button {
+    margin: 0;
+    -webkit-appearance: none;
+}
+
 /* FILTER PILLS */
 .pillGroup {
     display: flex;

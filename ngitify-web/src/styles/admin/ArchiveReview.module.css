@@ -177,6 +177,15 @@
     color: #1e293b;
     background: #ffffff;
     font: inherit;
+    appearance: textfield;
+    -moz-appearance: textfield;
+    background-image: none;
+}
+
+.rowsPerPageInput::-webkit-inner-spin-button,
+.rowsPerPageInput::-webkit-outer-spin-button {
+    margin: 0;
+    -webkit-appearance: none;
 }
 
 .paginationButton {

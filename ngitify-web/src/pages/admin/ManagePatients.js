@@ -12,6 +12,7 @@ import { downloadCsvFile } from '../../utils/exportHelpers';
 import LifecycleActionModal from '../../components/common/LifecycleActionModal';
 import ResendEmailButton from '../../components/common/ResendEmailButton';
 import PrintReportPreviewModal from '../../components/common/PrintReportPreviewModal';
+import RowsPerPageInput from '../../components/common/RowsPerPageInput';
 import { useToast } from '../../context/ToastContext';
 import {
     getAccessRecoveryLabel,
@@ -780,11 +781,8 @@ export default function ManagePatients({ patientScope = '', dentistExperience = 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginTop: '16px', flexWrap: 'wrap' }}>
                     <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#475569', fontSize: '14px' }}>
                         Rows per page
-                        <input
-                            type="number"
+                        <RowsPerPageInput
                             min="1"
-                            step="10"
-                            inputMode="numeric"
                             value={rowsPerPage}
                             onChange={handleRowsPerPageChange}
                             className={styles.filterSelect}

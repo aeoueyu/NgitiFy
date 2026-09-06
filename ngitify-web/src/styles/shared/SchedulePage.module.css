@@ -381,6 +381,15 @@
     font-size: 13px;
     font-weight: 700;
     outline: none;
+    appearance: textfield;
+    -moz-appearance: textfield;
+    background-image: none;
+}
+
+.rowsPerPageInput::-webkit-inner-spin-button,
+.rowsPerPageInput::-webkit-outer-spin-button {
+    margin: 0;
+    -webkit-appearance: none;
 }
 
 .rowsPerPageInput:focus {

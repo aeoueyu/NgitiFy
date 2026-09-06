@@ -17,6 +17,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useSystemConfig } from '../../hooks/useSystemConfig';
 import { useToast } from '../../context/ToastContext';
 import useRealtimeSystemEmailValidation from '../../hooks/useRealtimeSystemEmailValidation';
+import RowsPerPageInput from '../../components/common/RowsPerPageInput';
 import {
     INVALID_EMAIL_DOMAIN_MESSAGE,
     isAllowedEmailDomain,
@@ -89,7 +90,7 @@ const WORKFLOW_FILTER_OPTIONS = [
 
 const SCHEDULE_ROWS_PER_PAGE_STORAGE_KEY = 'ngitify_schedule_rows_per_page';
 const DEFAULT_SCHEDULE_ROWS_PER_PAGE = 10;
-const MIN_SCHEDULE_ROWS_PER_PAGE = 10;
+const MIN_SCHEDULE_ROWS_PER_PAGE = 1;
 
 const normalizeScheduleRowsPerPage = (value) => {
     const numericValue = Number(value);
@@ -2900,11 +2901,8 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
                     <div className={styles.paginationRow}>
                         <label className={styles.rowsPerPageLabel}>
                             Rows per page
-                            <input
-                                type="number"
+                            <RowsPerPageInput
                                 min={MIN_SCHEDULE_ROWS_PER_PAGE}
-                                step="10"
-                                inputMode="numeric"
                                 value={rowsPerPage}
                                 onChange={handleRowsPerPageChange}
                                 className={styles.rowsPerPageInput}
