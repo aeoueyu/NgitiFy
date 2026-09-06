@@ -1167,7 +1167,9 @@ export default function OralCareInsightsScreen({
   const contextualEducation =
     useMemo(
       () => (
-        Array.isArray(
+        oralHealth
+          ?.educationConsent === true
+        && Array.isArray(
           oralHealth
             ?.contextualEducation,
         )
@@ -1179,6 +1181,8 @@ export default function OralCareInsightsScreen({
       [
         oralHealth
           ?.contextualEducation,
+        oralHealth
+          ?.educationConsent,
       ],
     );
 
@@ -3412,7 +3416,10 @@ export default function OralCareInsightsScreen({
         <SectionLabel
           eyebrow="Recommended for You"
           title={
-            contextualEducation.length
+            oralHealth
+              ?.educationConsent !== true
+              ? 'Personalization is Off'
+              : contextualEducation.length
               ? 'Related to Your Recent Logs'
               : 'No Matching Topics Yet'
           }
@@ -3492,19 +3499,19 @@ export default function OralCareInsightsScreen({
             <Text
               style={styles.cardTitle}
             >
-              No contextual
-              education yet
+              {oralHealth
+                ?.educationConsent !== true
+                ? 'General education is still available'
+                : 'No contextual education yet'}
             </Text>
 
             <Text
               style={styles.cardBody}
             >
-              Related topics will
-              appear when your saved
-              Oral Health Management
-              information matches an
-              approved educational
-              topic.
+              {oralHealth
+                ?.educationConsent !== true
+                ? 'Turn on Personalized Dental Health Education in Settings to receive topics based on your logs.'
+                : 'Related topics will appear when your saved Oral Health Management information matches an approved educational topic.'}
             </Text>
           </SurfaceCard>
         )}

@@ -61,10 +61,11 @@ export default function PatientDentalHealthEducation() {
     );
 
     const recommendedEducation = useMemo(
-        () => Array.isArray(oralHealth?.contextualEducation)
+        () => oralHealth?.educationConsent === true
+            && Array.isArray(oralHealth?.contextualEducation)
             ? oralHealth.contextualEducation.slice(0, 3)
             : [],
-        [oralHealth?.contextualEducation]
+        [oralHealth?.contextualEducation, oralHealth?.educationConsent]
     );
 
     const educationCategories = useMemo(() => {
@@ -164,6 +165,19 @@ export default function PatientDentalHealthEducation() {
                                 </button>
                             ))}
                         </div>
+                    </section>
+                ) : null}
+
+                {!loading && oralHealth?.educationConsent !== true ? (
+                    <section className={styles.summaryCard}>
+                        <PatientSectionHeader
+                            eyebrow="Recommended for You"
+                            title="Personalization is off"
+                        />
+                        <p className={styles.toolText}>
+                            You can still browse general Dental Health Education below. Turn on
+                            Personalized Dental Health Education in Settings to receive topics based on your logs.
+                        </p>
                     </section>
                 ) : null}
 

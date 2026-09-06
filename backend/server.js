@@ -3049,6 +3049,7 @@ const buildPatientAiLiveContext = async ({
                 'treatmentLogs',
                 'oralHealthFactors',
                 'oralHealthLogs',
+                'educationConsent',
                 'radiographs._id',
                 'radiographs.label',
                 'radiographs.date',
@@ -9841,6 +9842,7 @@ const remindPatientsAboutOralHealthManagement = async () => {
                 'notifOralHealthDaily',
                 'notifSymptomFollowUp',
                 'notifHealthTips',
+                'educationConsent',
                 'oralHealthReminderTime',
             ].join(' ')
         );
@@ -9990,6 +9992,10 @@ const remindPatientsAboutOralHealthManagement = async () => {
                     patient
                         .notifHealthTips
                     !== false,
+                educationConsent:
+                    patient
+                        .educationConsent
+                    === true,
                 logs,
                 todayKey,
             });
@@ -11910,6 +11916,7 @@ const getOralHealthPayloadForPatient = async (patient) => {
     return buildOralHealthPayloadFromPatient({
         oralHealthFactors: patient.oralHealthFactors || [],
         oralHealthLogs,
+        educationConsent: patient.educationConsent === true,
     });
 };
 
@@ -11941,7 +11948,9 @@ app.patch('/api/my/oral-health/factors', verifyToken, async (req, res) => {
             return res.status(403).json({ message: 'Access denied.' });
         }
 
-        const patient = await User.findById(req.user.id).select('oralHealthFactors oralHealthLogs');
+        const patient = await User.findById(req.user.id).select(
+            'oralHealthFactors oralHealthLogs educationConsent'
+        );
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
 
         patient.oralHealthFactors = normalizeOralHealthFactors(req.body.factors || [], patient.oralHealthFactors || []);
@@ -11975,7 +11984,9 @@ app.post('/api/my/oral-health/logs', verifyToken, async (req, res) => {
         }
 
         const normalizedLog = normalizeDailyOralHealthLogInput(req.body || {});
-        const patient = await User.findById(req.user.id).select('oralHealthFactors oralHealthLogs');
+        const patient = await User.findById(req.user.id).select(
+            'oralHealthFactors oralHealthLogs educationConsent'
+        );
         if (!patient) return res.status(404).json({ message: 'Patient not found.' });
 
         const legacyExistingLog = (patient.oralHealthLogs || []).some((log) => log.logDateKey === normalizedLog.logDateKey);

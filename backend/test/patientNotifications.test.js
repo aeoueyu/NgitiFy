@@ -344,6 +344,7 @@ test('builds Dental Health Education notification from approved contextual educa
     const decision =
         buildDentalHealthEducationTipDecision({
             enabled: true,
+            educationConsent: true,
             todayKey:
                 '2026-08-14',
             logs: [
@@ -384,6 +385,7 @@ test('does not generate Dental Health Education notification without related con
     const decision =
         buildDentalHealthEducationTipDecision({
             enabled: true,
+            educationConsent: true,
             todayKey:
                 '2026-08-14',
             logs: [
@@ -408,4 +410,24 @@ test('does not generate Dental Health Education notification without related con
         decision.reason,
         'no-contextual-education'
     );
+});
+
+test('does not generate personalized Dental Health Education notification without consent', () => {
+    const decision =
+        buildDentalHealthEducationTipDecision({
+            enabled: true,
+            educationConsent: false,
+            todayKey: '2026-08-14',
+            logs: [
+                {
+                    logDateKey: '2026-08-14',
+                    symptoms: ['sensitivity'],
+                    dailyCare: [],
+                    riskFactors: [],
+                },
+            ],
+        });
+
+    assert.equal(decision.shouldNotify, false);
+    assert.equal(decision.reason, 'personalization-consent-disabled');
 });

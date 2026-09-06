@@ -485,6 +485,7 @@ const buildOralHealthSummary = (logs = []) => {
 };
 
 const buildOralHealthPayloadFromPatient = (patient = {}) => {
+    const educationConsent = patient.educationConsent === true;
     const factors = normalizeOralHealthFactors(
         (patient.oralHealthFactors || []).filter((item) => item.active).map((item) => item.id),
         patient.oralHealthFactors || []
@@ -501,7 +502,10 @@ const buildOralHealthPayloadFromPatient = (patient = {}) => {
         logs,
         summary: buildOralHealthSummary(logs),
         education: EDUCATION_LIBRARY,
-        contextualEducation: buildContextualDentalHealthEducation(logs),
+        educationConsent,
+        contextualEducation: educationConsent
+            ? buildContextualDentalHealthEducation(logs)
+            : [],
     };
 };
 

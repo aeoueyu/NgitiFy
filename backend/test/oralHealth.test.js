@@ -98,6 +98,7 @@ test('requires at least one daily log signal', () => {
 
 test('builds oral health payload with summary and education library', () => {
     const payload = buildOralHealthPayloadFromPatient({
+        educationConsent: true,
         oralHealthFactors: [{ id: 'sensitivity', label: 'Tooth Sensitivity', active: true }],
         oralHealthLogs: [
             { logDateKey: '2026-08-13', symptoms: ['sensitivity'], dailyCare: ['brushed-am', 'flossed'] },
@@ -109,6 +110,21 @@ test('builds oral health payload with summary and education library', () => {
     assert.equal(payload.summary.sensitivityDays, 1);
     assert.equal(payload.summary.flossingDays, 1);
     assert.ok(payload.education.length >= 1);
+    assert.equal(payload.educationConsent, true);
+    assert.ok(payload.contextualEducation.length >= 1);
+});
+
+test('keeps general education but hides contextual education without consent', () => {
+    const payload = buildOralHealthPayloadFromPatient({
+        educationConsent: false,
+        oralHealthLogs: [
+            { logDateKey: '2026-08-13', symptoms: ['sensitivity'], dailyCare: [] },
+        ],
+    });
+
+    assert.ok(payload.education.length >= 1);
+    assert.equal(payload.educationConsent, false);
+    assert.deepEqual(payload.contextualEducation, []);
 });
 
 test('declares one oral health log per patient per calendar date', () => {

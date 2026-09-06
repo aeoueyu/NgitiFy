@@ -218,6 +218,7 @@ const getMondayWeekKey = (
 
 const buildDentalHealthEducationTipDecision = ({
     enabled = true,
+    educationConsent = false,
     logs = [],
     todayKey = '',
 } = {}) => {
@@ -225,6 +226,13 @@ const buildDentalHealthEducationTipDecision = ({
         return {
             shouldNotify: false,
             reason: 'disabled',
+        };
+    }
+
+    if (!educationConsent) {
+        return {
+            shouldNotify: false,
+            reason: 'personalization-consent-disabled',
         };
     }
 
