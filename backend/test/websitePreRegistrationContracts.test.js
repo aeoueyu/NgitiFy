@@ -22,6 +22,13 @@ test('new website guests receive a pre-registration link as soon as the request 
     assert.match(route, /if \(!matchedPatient\) \{\s*Object\.assign\(newSurgery, buildGuestPreRegistrationFields\(\)\);/);
     assert.match(route, /await sendPreRegistrationEmail\(\{[\s\S]*token: newSurgery\.preRegistrationToken,[\s\S]*status: newSurgery\.status/);
     assert.match(route, /preRegistrationEmailSent: !matchedPatient/);
+    assert.match(route, /bookingDevice,/);
+});
+
+test('mobile website booking context is returned only after pre-registration and initial password setup', () => {
+    assert.match(serverSource, /bookingDevice: 'mobile',[\s\S]*preRegistrationCompleted: true/);
+    assert.match(serverSource, /shouldSuggestMobileAppAfterActivation\(account, requiresPasswordSetup\)/);
+    assert.match(serverSource, /suggestMobileApp,/);
 });
 
 test('pending website pre-registration creates and links the inactive patient account', () => {

@@ -1101,6 +1101,19 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     }
 });
 
+const shouldSuggestMobileAppAfterActivation = async (account, requiresPasswordSetup) => {
+    if (!requiresPasswordSetup || account?.role !== 'patient' || !account?._id) return false;
+
+    const mobileWebsiteBooking = await Surgery.exists({
+        patient: account._id,
+        source: 'Smile Hub (Online)',
+        bookingDevice: 'mobile',
+        preRegistrationCompleted: true,
+    });
+
+    return Boolean(mobileWebsiteBooking);
+};
+
 app.get('/api/activate-account/:token', async (req, res) => {
     try {
         const { token } = req.params;
@@ -1113,11 +1126,15 @@ app.get('/api/activate-account/:token', async (req, res) => {
             return res.status(400).json({ message: "Invalid or expired activation link." });
         }
 
+        const requiresPasswordSetup = account.isPasswordChanged !== true;
+        const suggestMobileApp = await shouldSuggestMobileAppAfterActivation(account, requiresPasswordSetup);
+
         res.json({
             message: 'Activation link is valid.',
             email: account.email,
             role: account.role,
-            requiresPasswordSetup: account.isPasswordChanged !== true,
+            requiresPasswordSetup,
+            suggestMobileApp,
         });
     } catch (error) {
         console.error("Activation validation error:", error);
@@ -1169,6 +1186,8 @@ app.post('/api/activate-account', async (req, res) => {
         if (!account.assignedBranch && Array.isArray(account.assignedBranches) && account.assignedBranches.length > 0) {
             account.assignedBranch = account.assignedBranches[0];
         }
+        const suggestMobileApp = await shouldSuggestMobileAppAfterActivation(account, requiresPasswordSetup);
+
         account.activationToken = undefined;
         account.activationTokenExpires = null;
         await account.save();
@@ -1177,7 +1196,8 @@ app.post('/api/activate-account', async (req, res) => {
             message: requiresPasswordSetup
                 ? "Account activated successfully. Your password is now set."
                 : "Account activated successfully. You can now sign in using your existing password.",
-            role: account.role
+            role: account.role,
+            suggestMobileApp,
         });
     } catch (error) {
         console.error("Activation error:", error);
@@ -10453,6 +10473,14 @@ app.post('/api/public/appointments/request', async (req, res) => {
             return res.status(slotCheck.statusCode).json({ message: slotCheck.message });
         }
 
+        const clientHintsMobile = String(req.headers['sec-ch-ua-mobile'] || '').trim() === '?1';
+        const userAgent = String(req.headers['user-agent'] || '');
+        const bookingDevice = clientHintsMobile || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(userAgent)
+            ? 'mobile'
+            : userAgent
+                ? 'desktop'
+                : 'unknown';
+
         const newSurgery = new Surgery({
             patient: matchedPatient?._id || undefined,
             guestName: matchedPatient ? undefined : normalizedName,
@@ -10474,6 +10502,7 @@ app.post('/api/public/appointments/request', async (req, res) => {
             notes: normalizedNotes,
             status: 'pending',
             source: 'Smile Hub (Online)',
+            bookingDevice,
             consentGiven: true,
             consentTimestamp: new Date(),
             consentVersion: PRIVACY_POLICY_VERSION,

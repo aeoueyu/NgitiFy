@@ -25,6 +25,7 @@ export default function ActivateAccountPage() {
     const [showChecklist, setShowChecklist] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
+    const [suggestMobileApp, setSuggestMobileApp] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
@@ -39,6 +40,7 @@ export default function ActivateAccountPage() {
 
                 setAccountEmail(data.email || '');
                 setRequiresPasswordSetup(data.requiresPasswordSetup !== false);
+                setSuggestMobileApp(Boolean(data.suggestMobileApp));
                 setStatus('ready');
             } catch (error) {
                 setErrorMessage(error.message || 'Invalid or expired activation link.');
@@ -93,8 +95,12 @@ export default function ActivateAccountPage() {
             }
 
             setSuccessMessage(data.message || 'Account activated successfully.');
+            const shouldSuggestMobileApp = Boolean(data.suggestMobileApp);
+            setSuggestMobileApp(shouldSuggestMobileApp);
             setStatus('success');
-            window.setTimeout(() => navigate('/login'), 2500);
+            if (!shouldSuggestMobileApp) {
+                window.setTimeout(() => navigate('/login'), 2500);
+            }
         } catch (error) {
             setErrorMessage(error.message || 'Failed to activate account.');
         } finally {
@@ -213,6 +219,14 @@ export default function ActivateAccountPage() {
                     <>
                         <div className={styles['page-title']}><p className={styles['newpass-title']}>Account Activated</p></div>
                         <div className={styles['page-header']}><p>{successMessage}</p></div>
+                        {suggestMobileApp && (
+                            <div className={styles.mobileAppPrompt} role="status">
+                                <p className={styles.mobileAppPromptTitle}>Continue in the NgitiFy mobile app</p>
+                                <p>
+                                    Since you booked using your phone, you can now open the NgitiFy mobile app and sign in with the password you just created.
+                                </p>
+                            </div>
+                        )}
                         <div className={styles['back-container']}>
                             <span onClick={() => navigate('/login')}>Go to Login</span>
                         </div>

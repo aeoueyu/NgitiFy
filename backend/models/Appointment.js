@@ -131,6 +131,11 @@ const appointmentSchema = new mongoose.Schema({
         enum: ['Smile Hub (Online)', 'Walk-in', 'Phone Call', 'Appointment'],
         default: 'Walk-in',
     },
+    bookingDevice: {
+        type: String,
+        enum: ['mobile', 'desktop', 'unknown'],
+        default: 'unknown',
+    },
 
     preOpInstructions: { type: String },
     requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

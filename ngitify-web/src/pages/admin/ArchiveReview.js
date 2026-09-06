@@ -74,6 +74,8 @@ export default function ArchiveReview() {
     const [searchQuery, setSearchQuery] = useState('');
     const [roleFilter, setRoleFilter] = useState('all');
     const [reviewFilter, setReviewFilter] = useState('all');
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [page, setPage] = useState(1);
     const [lifecycleConfig, setLifecycleConfig] = useState(null);
 
     const loadArchivedRecords = useCallback(async ({ silent = false } = {}) => {
@@ -143,6 +145,26 @@ export default function ArchiveReview() {
         const matchesReview = reviewFilter === 'all' || record.reviewState === reviewFilter;
         return matchesSearch && matchesRole && matchesReview;
     }), [records, reviewFilter, roleFilter, searchQuery]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredRecords.length / rowsPerPage));
+    const paginatedRecords = useMemo(
+        () => filteredRecords.slice((page - 1) * rowsPerPage, page * rowsPerPage),
+        [filteredRecords, page, rowsPerPage],
+    );
+
+    useEffect(() => {
+        setPage(1);
+    }, [searchQuery, roleFilter, reviewFilter, rowsPerPage]);
+
+    useEffect(() => {
+        setPage((current) => Math.min(current, totalPages));
+    }, [totalPages]);
+
+    const handleRowsPerPageChange = (event) => {
+        const nextValue = Number(event.target.value);
+        if (Number.isNaN(nextValue)) return;
+        setRowsPerPage(Math.max(1, nextValue));
+    };
 
     const summary = useMemo(() => ({
         total: records.length,
@@ -316,7 +338,7 @@ export default function ArchiveReview() {
                                 </td>
                             </tr>
                         ) : filteredRecords.length > 0 ? (
-                            filteredRecords.map((record) => (
+                            paginatedRecords.map((record) => (
                                 <tr key={record.id}>
                                     <td>
                                         <div style={{ display: 'grid', gap: '4px' }}>
@@ -390,6 +412,44 @@ export default function ArchiveReview() {
                     </tbody>
                 </table>
             </div>
+
+            {!loading && filteredRecords.length > 0 && (
+                <div className={styles.paginationRow}>
+                    <label className={styles.rowsPerPageLabel}>
+                        Rows per page
+                        <input
+                            type="number"
+                            min="1"
+                            step="10"
+                            inputMode="numeric"
+                            value={rowsPerPage}
+                            onChange={handleRowsPerPageChange}
+                            className={styles.rowsPerPageInput}
+                        />
+                    </label>
+                    <div className={styles.paginationControls}>
+                        <span>
+                            Showing {(page - 1) * rowsPerPage + 1} to {Math.min(page * rowsPerPage, filteredRecords.length)} of {filteredRecords.length}
+                        </span>
+                        <button
+                            type="button"
+                            className={styles.paginationButton}
+                            onClick={() => setPage((current) => Math.max(1, current - 1))}
+                            disabled={page === 1}
+                        >
+                            Previous
+                        </button>
+                        <button
+                            type="button"
+                            className={styles.paginationButton}
+                            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                            disabled={page === totalPages}
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <LifecycleActionModal
                 isOpen={!!lifecycleConfig}
