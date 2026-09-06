@@ -17,15 +17,23 @@ const OWNER_TABS = [
     { key: 'branchManagers', label: 'Branch Managers', path: '/owner/manage-staffs/branch-managers' },
 ];
 
+const BRANCH_MANAGER_TABS = [
+    { key: 'secretaries', label: 'Secretaries', path: '/branch-manager/manage-staffs/secretaries' },
+    { key: 'dentists',    label: 'Dentists',    path: '/branch-manager/manage-staffs/dentists' },
+];
+
 const UserTabs = ({ activeTab }) => {
     const navigate = useNavigate();
     const { user } = useAuth();
 
     const isOwner = user?.role === 'owner';
+    const isBranchManager = user?.role === 'branch-manager';
     const isAdminTier = user?.role === 'administrator';
 
     let tabs;
-    if (isOwner) {
+    if (isBranchManager) {
+        tabs = BRANCH_MANAGER_TABS;
+    } else if (isOwner) {
         tabs = OWNER_TABS;
     } else {
         tabs = ADMIN_TABS.filter(tab => !tab.adminTierOnly || isAdminTier);

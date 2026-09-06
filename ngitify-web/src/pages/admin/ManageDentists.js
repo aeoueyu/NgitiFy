@@ -318,7 +318,7 @@ export default function ManageDentists() {
                 </div>
             </div>
 
-            {!isBranchManager && <UserTabs activeTab="dentists" />} 
+            <UserTabs activeTab="dentists" />
 
             <div className={`${styles.tableContainer} ${tblStyles.tableWrapper}`}>
                 <table className={`${styles.userTable} ${tblStyles.table}`}>

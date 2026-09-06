@@ -318,7 +318,7 @@ export default function ManageSecretaries() {
                 </div>
             </div>
 
-            {!isBranchManager && <UserTabs activeTab="secretaries" />}
+            <UserTabs activeTab="secretaries" />
 
             <div className={`${styles.tableContainer} ${tblStyles.tableWrapper}`}>
                 <table className={`${styles.userTable} ${tblStyles.table}`}>

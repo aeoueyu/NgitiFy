@@ -1,0 +1,837 @@
+4.4 DESCRIPTION OF THE SYSTEM
+
+Web Application
+
+
+
+
+                                       Figure 1. Sign in (Web)
+
+       Figure 150 shows the Login page where users enter their username and password to
+proceed. A 'Forgot Password?' option is also available.
+
+
+
+
+                                   Figure 2. Forgot Password (Web)
+
+       Figure 151 shows the Forgot Password page, where users can enter their username to reset
+their password or click 'Remember your password?' to return to the Login page.
+                         Figure 3. Verification Methods – Forgot Password (Web)
+
+       Figure 152 displays the verification method page, allowing users to choose their preferred
+verification method—either OTP or security questions.
+
+
+
+
+     Figure 4. One-Time Password – Forgot        Figure 5. Security Questions – Forgot Password
+                Password (Web)                                        (Web)
+
+
+
+       Figure 153 displays the one-time password page, which allows users to enter the 6-digit
+code received via SMS. Figure 154 illustrates the security questions page, where users can select
+and answer a question.
+Figure 6. Dashboard 1
+
+
+
+
+Figure 7. Dashboard 2
+
+
+
+
+Figure 8. Dashboard 3
+                                       Figure 9. Dashboard 4
+
+
+
+
+                                       Figure 10. Dashboard 5
+
+
+
+       Figures 155, 156, 157, 158, and 159 show the dashboard page, which presents
+demographics, classification reports, graphs of document requests, court reservations, blotter
+reports, and an events calendar displaying all barangay activities and schedules.
+                                 Figure 11. Sidebar (Expanded)
+
+
+
+
+                                 Figure 12. Sidebar (Collapsed)
+
+
+       Figure 160 displays the sidebar content when expanded. A red dot beside the content
+indicates an unread update requiring the user’s attention. Figure 161 shows the sidebar when
+collapsed
+       Figure 13. Notifications (Web)
+
+
+
+
+Figure 14. Dropdown Content – Profile (Web)
+
+
+
+
+       Figure 15. Edit Profile 1 (Web)
+                                     Figure 16. Edit Profile 2 (Web)
+
+       Figure 162 displays the notifications. Users can filter it by all, read, and unread. They can
+mark all messages as read. Figure 163 illustrates the account settings button and logout, where the
+user can redirect to the account settings page or log out of the system. Figure 164 shows the account
+settings page, specifically the profile section that displays the logged-in user's information. Figure
+165 shows the household information section of the household head's profile, where users can add,
+edit, or remove members and vehicles.
+
+
+
+
+                                  Figure 17. Change Username (Web)
+
+       Figure 166 shows the Change Username page, displaying the current username (partially
+hidden). Users enter a new username and password, then click Save to update.
+                                 Figure 18. Change Password (Web)
+
+
+       Figure 167 displays the Change Password page. The user must enter their current password,
+enter a new password, re-enter the new password, and then click Save to update the password.
+
+
+
+
+                               Figure 19. Change Security Questions
+
+
+       Figure 168 displays the Change Security Questions page. The user must provide Security
+Question #1 and/or Security Question #2, along with their corresponding answers, and their
+password, then click Save to update the security questions.
+                                         Figure 20. Employees
+
+       Figure 169 displays the Employees table showing active employees and their information.
+When a user searches for a name, the table will display only the related records. It also has an Export
+option that exports to CSV or PDF, and a Filter option with categories such as All, Captain, Secretary,
+Clerk, Kagawad, Tanod, and Justice.
+
+
+
+
+                                  Figure 21. Add New Employee Form
+
+       Figure 170 shows the Add New Employee Form displayed when the Add New Employee
+button is clicked. The user must enter the employee's name and position, then click Submit to add
+the new employee.
+                               Figure 22. Expanded Employee Details
+
+
+       Figure 171 shows the details of a selected employee when the arrow button is clicked. It also
+provides three buttons: Edit, Employee ID, and Archive.
+
+
+
+
+                                  Figure 23. Edit Employee Position
+
+       Figure 172 shows the Edit Employee Position form, which appears when the Edit button is
+clicked. The user must select a new position and click Submit to save changes.
+                                  Figure 24. Generated Employee ID
+
+
+       Figure 173 shows the generated Employee ID. When the employee ID is clicked, it shows
+both the front and back layouts
+
+
+
+
+                      Figure 25. Expanded Archived Employee Details (Expanded)
+
+
+       Figure 174 displays the Archived Employees table. When an entry is clicked, more details
+appear along with a Recover button.
+                                          Figure 26. Residents
+
+          Figure 175 displays the Residents table showing active residents and their information. It
+has an Export option, available as CSV or PDF, a Filter option, with categories such as All, Female,
+Male, Newborn, Infant, Under five y.o., School Age, Adolescent, Adolescent Pregnant, Adult,
+Postpartum, Women of Reproductive Age, Senior Citizens, Pregnant, PWD, Unemployed, and
+Voters.
+
+
+
+
+                                  Figure 27. Expanded Resident Details
+
+
+          Figure 176 shows the details displayed when the arrow button beside a specific resident is
+clicked. It displays the resident's information, along with four buttons: Edit, Document, Brgy. ID, and
+Archive.
+                        Figure 28. Create Resident Form: Personal Information
+
+       Figure 177 presents the first part of the create resident form, which collects the resident’s
+personal information.
+
+
+
+
+               Figure 29. Create Resident Form: Personal Information – Sex: Default/Male
+
+       Figure 178 shows the form fields displayed when the selected sex is male/default.
+                   Figure 30. Create Resident Form: Personal Information – Sex: Female
+
+       Figure 179 illustrates the form fields displayed when the selected sex is female. It includes
+the family planning method and an additional checkbox for classification by Age/Health: Women of
+Reproductive Age and Postpartum.
+
+
+
+
+ Figure 31. Classification by Age/Health Options   Figure 32. Classification by Age/Health Options
+         (Resident: Female, Legal Age)                       (Resident: Female, Minor)
+
+       Figure 180 displays the options when the resident is a woman of legal age, while Figure 181
+shows the options when the resident is a female minor.
+               Figure 33. Create Resident Form: Personal Contact and Emergency Contact
+
+       Figure 182 presents the third part of the create resident form, which gathers the resident’s
+contact and emergency contact information.
+
+
+
+
+              Figure 34. Create Resident Form: Household Information - Resident: Not Head
+
+       Figure 183 shows the household information when the answer to “Head of the Household”
+is “No,” allowing the user to select an existing household and relationship to the head.
+
+
+
+
+               Figure 35. Create Resident Form: Household Information 1 – Resident: Head
+              Figure 36. Create Resident Form: Household Information 2 – Resident: Head
+
+       Figure 184 shows the household information when the answer is “Yes,” prompting the
+creation of a new household and the addition of members and vehicles, as illustrated in Figure 185.
+
+
+
+
+               Figure 37. Create Resident Form: Employment and Educational Information
+
+
+       Figure 186 shows the last part of the create resident form, which collects the resident’s
+employment and educational information.
+                               Figure 38. Edit Resident Form: First Part
+
+
+
+
+                               Figure 39. Edit Resident Form: Last Part
+
+       Figures 187 and 188 display the Edit Resident form when the Edit button is clicked. The user
+can edit the resident's information and click Submit.
+                                Figure 40. Create Document Form
+
+       Figure 189 shows the Barangay ID option when the Document is clicked. The user must
+select the document type, after which the corresponding amount is automatically displayed. The
+user then clicks Submit.
+
+
+
+
+                              Figure 41. Generated Resident ID
+
+
+       Figure 190 displays the generated Barangay ID, when Brgy. ID is clicked, showing both the
+front and back layout.
+                            Figure 42. Expanded Pending Resident Details
+
+
+       Figure 191 shows the pending table listing all residents who submitted profiling applications,
+with three actions: Reject, Accept, and View.
+
+
+
+
+                                   Figure 43. Reject Resident Form
+
+       Figure 192 shows the Reject Resident form that appears when Reject is clicked. The user
+must provide the rejection reason and click Submit.
+                               Figure 44. Change Requested Residents
+
+       Figure 193 shows the change request table listing all profile information update requests,
+with options to Reject, Approve, or View.
+
+
+
+
+                            Figure 45. Expanded Archived Resident Details
+
+       Figure 194 shows the Archived/Rejected Residents table. When an entry is clicked,
+additional details are displayed along with a Recover button.
+                                      Figure 46. Households (Web)
+
+        Figure 195 displays the Households table showing active households and their information.
+It has a PDF export option and a filter option, All and 4Ps.
+
+
+
+
+                              Figure 47. Full Details of Selected Household
+
+
+
+        Figure 196 displays specific household information, including household address,
+members, vehicles, and other related details.
+                                    Figure 48. Pending Households
+
+       Figure 197 shows the pending households table, listing households awaiting approval.
+
+
+
+
+                                Figure 49. Change Requested Households
+
+       Figure 198 shows the change request households table, listing households requesting
+updates to their information.
+                              Figure 50. Archived/Rejected Household
+
+
+       Figure 199 shows the Archived/Rejected Households table, listing archived/rejected
+residents.
+
+
+
+
+                              Figure 51. Household Information (PDF)
+
+       Figure 200 displays the exported PDF file of the household records.
+                                       Figure 52. Blotter Reports
+
+        Figure 201 displays the Blotter Reports page, explicitly showing the Pending table. It has Sort
+options (Newest, Oldest) and the Add New Blotter button.
+
+
+
+
+                                 Figure 53. Create Blotter Form: Part 1
+
+        Figures 202 and 203 display the Blotter form that appears when Add New Blotter is clicked.
+The user must fill in all required fields and click Submit. The form also includes a Clear button to
+reset all inputs.
+Figure 54. Create Blotter Form: Part 2
+
+
+
+
+Figure 55. Full Blotter Report Details 1
+
+
+
+
+Figure 56. Full Blotter Report Details 2
+       Figures 204 and 205 show the details displayed when a specific blotter report is clicked. The
+report contains detailed information along with two buttons: Reject and Schedule.
+
+
+
+
+                                Figure 57. Reject Blotter Report Form
+
+       Figure 206 shows the Reject form that appears when Reject is clicked. The user must provide
+the rejection reason and click Submit.
+
+
+
+
+                                Figure 58. Scheduled Blotter Reports
+
+
+       Figure 207 displays the Scheduled Blotter Reports table, which lists the scheduled dates for
+each report. Newest or Oldest can sort the records.
+                           Figure 59. Full Scheduled Blotter Details
+
+
+       Figure 208 shows the details when a specific scheduled blotter report is clicked. It displays
+detailed information along with three buttons: Reject, Update, and Settle.
+
+
+
+
+                                 Figure 60. Reject Blotter Report Form
+
+
+       Figure 209 shows the Reject form when Reject is clicked. The user must provide the reason
+for rejecting the scheduled blotter report and click Submit.
+                            Figure 61. Settlement Agreement Form: Part 1
+
+
+
+
+                            Figure 62. Settlement Agreement Form: Part 2
+
+
+       Figures 210 and 211 display the Settle Agreement form that appears when Settle is clicked.
+The user must input all required information and click Submit.
+                                     Figure 63. Settled Blotter Reports
+
+          Figure 212 shows the Settled Blotter Reports table. It includes an Export option that lets you
+export data as CSV or PDF, and a Sort option that enables you to arrange records by Newest or
+Oldest.
+
+
+
+
+                                Figure 64. Full Settled Blotter Report Details
+
+          Figures 213 show the details of a specific settled blotter report when clicked. It provides
+complete information along with a Print button.
+                   Figure 65. Generated Settlement Agreement Form
+
+Figure 214 displays the Settled Blotter Report layout when Print is selected.
+                                    Figure 66. Rejected Blotter Reports
+
+          Figure 215 shows the Rejected Blotter Reports table. It includes a Sort option for Newest and
+Oldest.
+
+
+
+
+                               Figure 67. Full Rejected Blotter Report Details
+
+          Figure 216 displays the detailed information of a rejected blotter report.
+                                  Figure 68. Document Requests
+
+       Figure 217 shows the Document Requests page, specifically the Pending table. It includes a
+Sort option (Newest and Oldest). When a request is clicked, more details appear along with two
+buttons: Reject and Issue.
+
+
+
+
+                                Figure 69. Reject Document Request
+
+       Figure 218 shows the Reject Document Request form that appears when Reject is clicked.
+The user must provide the rejection reason and click Submit.
+                  Figure 70. Generated Issued Document Request
+
+Figure 219 shows the barangay document layout once issuance is confirmed.
+                                Figure 71. Issued Document Requests
+
+
+
+
+                            Figure 72. Expanded Issued Document Request
+
+
+       Figure 220 displays the Issued table. It includes an Export option for CSV and PDF, as well as
+a Sort option (Newest and Oldest). When a record is clicked, as shown in Figure 221, more details
+appear along with three buttons: Notify, Print, and Collected.
+                      Figure 73. Expanded Cancelled/Rejected Document Request
+
+       Figure 222 shows the Cancelled/Rejected table. It includes a Sort option (Newest and
+Oldest). When a record is clicked, more details, including the rejection reason, appear.
+
+
+
+
+                                Figure 74. Pending Court Reservations
+
+       Figure 223 displays the Court Reservations page, specifically the Pending table, with two
+buttons: Reject and Approve. It also includes a Sort option (Newest, Oldest) and an Add New
+Reservation button.
+                               Figure 75. Add New Reservation Form
+
+
+       Figure 224 shows the Add New Reservation form when the button is clicked. The user must
+input the name, purpose, and date, after which the amount is automatically displayed. The user
+must then click Submit.
+
+
+
+
+                              Figure 76. Reject Court Reservation Form
+
+       Figure 225 shows the Reject Reservation form that appears when Reject is clicked. The user
+must provide the rejection reason and click Submit.
+                              Figure 77. Approved Court Reservations
+
+       Figure 226 displays the Approved Court Reservations table. It includes an Export option (CSV
+and PDF), a Sort option (Newest, Oldest), and the Add New Reservation button.
+
+
+
+
+                          Figure 78. Cancelled/Rejected Court Reservations
+
+       Figure 227 shows the Cancelled/Rejected Court Reservations table, which also includes
+remarks.
+                                 Figure 79. Blotter Report Notification
+
+
+
+
+                               Figure 80. Document Request Notification
+
+
+
+
+                               Figure 81. Court Reservation Notification
+
+
+       Figures 228, 229, and 230 display examples of quick notifications, showing when a resident
+files a blotter report, requests a document, or submits a court reservation.
+                               Figure 82. Announcements (Web)
+
+      Figure 231 displays the Announcements page, which includes categories, posts, pinned
+announcements, and the option to create an announcement.
+
+
+
+
+                            Figure 83. Add New Announcement Form
+                                   Figure 84. Event Details Form
+
+       Figures 232 and 233 show the Add New Announcement form, where the user must input the
+category, title, and content. The user may also attach an image or add an event date, as
+demonstrated in Figure 232.
+
+
+
+
+                              Figure 85. Announcement’s Menu Options
+
+       Figure 234 shows the options available when the menu button is clicked, which include Edit
+and Archive.
+                              Figure 86. Edit Announcement Form
+
+       Figure 235 displays the Edit form when Edit is clicked. The user can modify the
+announcement information and click Update.
+
+
+
+
+                           Figure 87. SOS Update Reports (Map View)
+                            Figure 88. SOS Update Reports (Satellite View)
+
+
+
+
+                             Figure 89. SOS Update Reports (Street View)
+
+       Figures 236, 237, and 238 display the SOS Update Reports, specifically the Active reports.
+These include a map and satellite view that pinpoint the location of residents requesting SOS. The
+reports can also be viewed in Street View mode.
+                              Figure 90. Clicked On Selected Pinned SOS
+
+       Figure 239 shows the detailed SOS Update Report information when a pinned location is
+clicked.
+
+
+
+
+                               Figure 91. SOS Update Reports (History)
+
+       Figure 240 displays the History table. When a record is clicked, as shown in Figure 241, more
+detailed information is displayed.
+Figure 92. Full Resolved SOS Report Details (In Satellite View – Customizable)
+
+
+
+
+                     Figure 93. River Snapshot (Current)
+                                     Figure 94. River Snapshots (History)
+
+
+          Figure 242 displays the current river snapshot, which is updated every 10 minutes, while Figure 243
+displays the six most recent snapshots.
+
+
+
+
+                                        Figure 95. Emergency Hotlines
+
+          Figure 244 shows the Emergency Hotlines page, specifically the Active table, with two
+buttons: Edit and Archive. It also includes an Export option (CSV and PDF) and an Add New Contact
+button.
+                                Figure 96. Add New Contact Form
+
+       Figure 245 displays the Add New Contact form when the button is clicked. The user must
+input the contact’s name and number, then click Submit.
+
+
+
+
+                                     Figure 97. Edit Contact Form
+
+       Figure 246 shows the Edit form when Edit is clicked. The user can update the name and
+contact number, then click Submit.
+                               Figure 98. Archived Emergency Hotlines
+
+       Figure 247 displays the Archived table with a Recover button.
+
+
+
+
+                                      Figure 99. User Accounts
+
+       Figure 248 displays the User Accounts page, specifically the Current table, with two buttons:
+Edit and Deactivate. It includes an Export option (CSV and PDF), a Sort option (Newest, Oldest), and
+the Add New User button.
+                                 Figure 100. Add New User Form
+
+       Figure 249 displays the Add New User form when the button is clicked. The user must input
+the name, role, and username, then generate a password and click Submit.
+
+
+
+
+                                  Figure 101. Edit Account Form
+
+
+       Figure 250 shows the Edit form when Edit is clicked. The user can update the username,
+generate a password, and then click Submit.
+                                 Figure 102. Pending User Accounts
+
+
+
+
+                               Figure 103. Edit Pending User Account
+
+
+
+       Figure 251 shows the Pending table, which contains an Edit button. When clicked, as shown
+in Figure 252, the user can edit the username, generate a password, and click Submit.
+                                 Figure 104. Archived User Accounts
+
+        Figure 253 displays the Archived table with its corresponding information.
+
+
+
+
+                                       Figure 105. Activity Logs
+
+        Figure 254 shows the Activity Logs page with Sorting options and the export options (CSV and
+PDF).
+                    Figure 106. Plus Icon: Chats and FAQs
+
+Figure 255 displays the + button. When clicked, the FAQs and Chats buttons appear.
+
+
+
+
+              Figure 107. Barangay Chat Interface (No Selected Resident)
+                                  Figure 108. Chat Session with Resident
+
+       Figure 256 shows the Barangay Chat interface, which lists residents who initiated
+conversations. When a specific chat is selected, as shown in Figure 257, the entire discussion is
+displayed along with Send and End buttons.
+
+
+
+
+                                  Figure 109. Chat Session with MariBot
+
+       Figure 258 displays the Bot interface, which responds to descriptive, prescriptive, and
+predictive questions/inquiries.
+                            Figure 110. Chat from Resident Notification
+
+
+       Figure 259 shows an example of a quick notification indicating that a resident has sent a
+message.
+
+
+
+
+                           Figure 111. Frequently Asked Questions Form
+
+
+       Figure 260 displays the Frequently Asked Questions (FAQs) form, where the user can add a
+question and its corresponding answer, then click Add FAQ.
+                              Figure 112. Expanded Clicked FAQ
+
+
+       Figure 261 shows the FAQs form with existing questions and answers. When clicked, the
+user can choose to Edit or Archive an entry.
+
+
+
+
+                              Figure 113. Edit Frequently Asked Question
+
+       Figure 262 shows the Edit FAQ form when Edit is clicked. The user can update the question
+and its answer, then click Update FAQ.
+                                         Figure 114. Pagination
+
+
+        Figure 263 shows the option to select the number of rows displayed per page. The user can
+sort the view by All, 5, 10, 15, or 20 rows using the dropdown menu.
+
+Mobile Application
+
+
+
+
+                                    Figure 115. Onboarding Screens
+
+        Figure 264 shows the Preview page that appears when the eBarrio app is opened for the first
+time. It contains three slides, and on the last slide, there are two options: Join Us and Login.
+             Figure 116. Login (Mob)                Figure 117. Forgot Password (Mob)
+
+
+
+
+        Figure 265 shows the Login page. The user must enter their username and password, then
+click Login to proceed. The page also includes a Forgot Password? Option to redirect to the Forgot
+Password page, and a Sign Up option to go to the Signup page.
+
+        Figure 266 shows the Forgot Password page. The user must enter their username to verify
+their identity.
+        Figure 118. Verification Method                   Figure 119. OTP Method
+
+
+
+
+       Figure 267 displays the Verification Methods page, which provides two methods: One-Time
+Password (OTP) and Security Question.
+
+
+       Figure 268 shows the OTP page when the OTP option is chosen. The user must enter the six-
+digit code sent to their registered mobile number. If the code is not received, they can click Resend
+OTP.
+     Figure 120. Security Question Method               Figure 121. Reset Password
+
+
+
+       Figure 269 shows the Security Questions page. The user must select a security question,
+provide the corresponding answer, and click Verify.
+
+       Figure 270 displays the Reset Password page. The user must enter a new password, re-enter
+it to confirm, and click Reset to proceed. The new password can then be used for logging in.
+         Figure 122. Create Account 1                Figure 123. Create Account 2
+
+
+
+
+   Figures 271 and 272 show the Signup page, where the user must provide all required information
+and click Submit. The page includes buttons for Terms and Conditions, Login, and Create One.
+Figure 124. Create Resident Form: Part 1   Figure 125. Create Resident Form: Part 1
+
+
+
+
+Figure 126. Create Resident Form: Part 3   Figure 127. Create Resident Form: Part 4
+    Figure 128. Create Resident Form: Part 5        Figure 129. Create Resident Form: Part 6
+
+
+
+
+                            Figure 130. Create Resident Form: Part 6
+
+
+       Figures 273-279 show the Create Resident Profile form. The user must fill in all required
+information and click Submit. The form also includes a Clear button to reset the entered fields.
+       Figure 131. Home          Figure 132. Announcements            Figure 133. Notifications
+                                            (Mob)                              (Mob)
+
+
+
+       Figure 280 shows the Home page, which appears after the user successfully logs in.
+
+       Figure 281 displays the Announcements page. The user can tap the heart icon to like an
+announcement and sort announcements by Newest or Oldest.
+
+       Figure 282 shows the Notifications page. A blue dot indicates an unread notification. The
+user can tap a specific notification to navigate to the corresponding page. It also includes options to
+Mark All as Read and to sort notifications by All, Read, or Unread.
+    Figure 134. Profile (Mob)         Figure 135. Barangay      Figure 136. Barangay Weather
+                                            Calendar
+
+
+
+        Figure 283 displays the Profile page. The user can view their own profile information, edit the
+details, and click Submit to save the changes.
+
+        Figure 284 shows the Calendar page, which displays the barangay events calendar. Color
+legends indicate different event categories. It also shows the list of events for a specific day when
+selected.
+
+        Figure 285 displays the Weather page, which shows the current weather in Barangay Aniban
+II. It also provides hourly and 2-day forecasts.
+         Figure 137. Sidebar (Resident)           Figure 138. Sidebar (Barangay Personnel)
+
+
+       Figure 286 displays the sidebar when a resident account is logged in through the app, while
+Figure 287 illustrates the sidebar for barangay personnel. Residents can request documents,
+reserve the court, report a blotter, view submission status, and access account settings.
+     Figure 139. Request         Figure 140. Reserve Court1    Figure 141. Reserve Court 2
+         Document
+
+
+       Figure 288 displays the page where residents can request documents, while Figures 289 and
+290 illustrate the page where residents can reserve the barangay covered court.
+  Figure 142. Report Blotter 1   Figure 143. Report Blotter 2        Figure 144. Status
+
+
+       Figures 291 and 292 display the Report Blotter page, where users can submit complaints
+about specific residents or individuals. In contrast, Figure 293 presents the Submission Status page,
+which allows residents to view details and statuses of their submissions.
+      Figure 145. Change Mobile Number           Figure 146. Change Username - Mob
+
+
+       Figure 294 presents the Change Mobile Number page, which allows residents to update their
+mobile number, while Figure 295 shows the page where residents can change their username.
+      Figure 147. Change Password - Mob          Figure 148. Change Security Questions - Mob
+
+
+
+
+       Figure 296 presents the Change Password page, which allows residents to update their
+password. Once successful, they are redirected to the login page. Figure 297 shows the page where
+residents can change their security questions.
+            Figure 149. SOS Form 1                     Figure 150. SOS Form 2
+
+
+       Figure 298 displays the SOS page, where users can press the button for three seconds to
+request immediate assistance, while Figure 299 allows residents to provide additional emergency
+details to help assess the situation.
+      Figure 151. Disaster         Figure 152. Emergency      Figure 153. River Snapshot
+        Readiness Tools                   Hotlines
+
+
+
+
+       Figure 300 displays the disaster readiness tools: Quick Safety Tips, Disaster Safety Tips,
+Barangay Hazard Maps, and the Barangay Evacuation Route Map.
+
+       Meanwhile, Figure 301 shows the Emergency Hotlines page, where users can search for
+hotlines and dial them directly.
+
+       Figure 302 shows the River Snapshot page, where residents can view real-time river images
+updated every 10 minutes.
+     Figure 154. River Snapshot (Personnel)            Figure 155. SOS Requests
+
+
+
+
+       Figure 303 presents the River Snapshot page when the logged-in account belongs to
+barangay personnel. They can view river snapshots and their history, and send alerts to residents
+about river status. Figure 304 shows the SOS Requests page, which lists all SOS requests submitted
+by residents.
+     Figure 156. SOS Request 1           Figure 157. SOS Request 2         Figure 158. SOS Request 3
+
+
+
+
+        Figure 305 shows the page barangay personnel see when they click one of the SOS requests.
+When they click the heading, the buttons change accordingly, as shown in Figure 306. They can then
+click either 'Arrive' or 'Did Not Arrive.' If they click 'Arrive,' the buttons change again, as shown in
+Figure 307, displaying the options 'Verify' and 'False Alarm.'
+ Figure 159. Post-Incident Report Form      Figure 160. False       Figure 161. Responded SOS
+                                              Report Form
+
+       Figure 308 displays the Post-Incident Form, while Figure 309 illustrates the False Alarm
+Form. Figure 310 shows the list of SOS responses made by the logged-in barangay personnel.
+
