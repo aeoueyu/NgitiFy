@@ -24,6 +24,7 @@ import AddInventoryStock from './AddInventoryStock';
 import EditInventoryItem from './EditInventoryItem';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import PrintReportPreviewModal from '../../components/common/PrintReportPreviewModal';
+import RowsPerPageInput from '../../components/common/RowsPerPageInput';
 import { useToast } from '../../context/ToastContext';
 import { formatDateShort } from '../../utils/dateUtils';
 
@@ -78,6 +79,8 @@ export default function InventoryTracker() {
     const [branchOptions, setBranchOptions] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [expandedItems, setExpandedItems] = useState([]);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [page, setPage] = useState(1);
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isAddStockModalOpen, setIsAddStockModalOpen] = useState(false);
@@ -207,6 +210,25 @@ export default function InventoryTracker() {
         });
     }, [summaryInventory, searchQuery, categoryFilter, branchFilter]);
     const hasActiveInventoryFilters = !!searchQuery.trim() || categoryFilter !== 'All' || branchFilter !== 'All';
+    const totalPages = Math.max(1, Math.ceil(filteredInventory.length / rowsPerPage));
+    const paginatedInventory = useMemo(
+        () => filteredInventory.slice((page - 1) * rowsPerPage, page * rowsPerPage),
+        [filteredInventory, page, rowsPerPage]
+    );
+
+    useEffect(() => {
+        setPage(1);
+    }, [searchQuery, categoryFilter, branchFilter, rowsPerPage]);
+
+    useEffect(() => {
+        setPage((current) => Math.min(current, totalPages));
+    }, [totalPages]);
+
+    const handleRowsPerPageChange = (event) => {
+        const nextValue = Number(event.target.value);
+        if (!Number.isInteger(nextValue)) return;
+        setRowsPerPage(Math.max(1, nextValue));
+    };
 
     const inventoryStats = useMemo(() => {
         let lowStock = 0;
@@ -454,7 +476,7 @@ export default function InventoryTracker() {
                         {isLoading ? (
                             <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: '#01538b' }}>Loading inventory records...</td></tr>
                         ) : filteredInventory.length > 0 ? (
-                            filteredInventory.map((item) => {
+                            paginatedInventory.map((item) => {
                                 const isExpanded = expandedItems.includes(item.itemId);
                                 return (
                                     <React.Fragment key={item.itemId}>
@@ -577,6 +599,41 @@ export default function InventoryTracker() {
                     </tbody>
                 </table>
             </div>
+
+            {!isLoading && filteredInventory.length > 0 && (
+                <div className={styles.paginationRow}>
+                    <label className={styles.rowsPerPageLabel}>
+                        Rows per page
+                        <RowsPerPageInput
+                            min="1"
+                            value={rowsPerPage}
+                            onChange={handleRowsPerPageChange}
+                            className={styles.rowsPerPageInput}
+                        />
+                    </label>
+                    <div className={styles.paginationControls}>
+                        <span>
+                            Showing {(page - 1) * rowsPerPage + 1} to {Math.min(page * rowsPerPage, filteredInventory.length)} of {filteredInventory.length}
+                        </span>
+                        <button
+                            type="button"
+                            className={styles.paginationButton}
+                            onClick={() => setPage((current) => Math.max(1, current - 1))}
+                            disabled={page === 1}
+                        >
+                            Previous
+                        </button>
+                        <button
+                            type="button"
+                            className={styles.paginationButton}
+                            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                            disabled={page === totalPages}
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {isAddModalOpen && (
                 <AddInventoryItem

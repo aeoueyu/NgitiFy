@@ -1,0 +1,750 @@
+4.4 DESCRIPTION OF THE SYSTEM
+Web Application
+
+
+
+
+                      Figure 1. Home Page (Web)
+
+
+
+
+                      Figure 2. About Page (Web)
+Figure 3. Services Page (Web)
+
+
+
+
+Figure 4. Contact Page (Web)
+Figure 5. Appointment Page 1 (Web)
+                              Figure 6. Appointment Page 2 (Web)
+
+         Figures 1 through 6 show the public-facing pages of the Dentime Dental Clinic website.
+Visitors can learn about the clinic, browse available services, review contact information, and open
+the appointment page. The appointment request form collects the guest's identifying and contact
+details, selected branch, preferred schedule, procedure, concern or message, data privacy consent,
+and CAPTCHA verification before the request is submitted.
+                                   Figure 7. Login (Web)
+
+      Figure 7 shows the web login page, where an authorized user enters an email address and
+password to access the system. It also provides a Forgot Password link for account recovery.
+
+
+
+
+                              Figure 8. Forgot Password (Web)
+
+       Figure 8 shows the web Forgot Password page, where the user enters a registered email
+address to request a password-reset code.
+                    Figure 9. Email Verification - Forgot Password (Web)
+
+        Figure 9 shows the email verification step of account recovery. The user enters the
+verification code sent to the registered email address before proceeding.
+
+
+
+
+                    Figure 10. Set New Password - Forgot Password (Web)
+
+      Figure 10 shows the final password-reset step, where the user creates and confirms a new
+password before returning to the login page.
+Figure 11. Administrator Dashboard 1 (Web)
+
+
+
+
+Figure 12. Administrator Dashboard 2 (Web)
+               Figure 13. Administrator Dashboard 3 – Sidebar Expanded (Web)
+
+
+
+
+               Figure 14. Administrator Dashboard 4 – Sidebar Collapsed (Web)
+
+        Figures 11 and 12 show the administrator dashboard and its operational summaries, charts,
+calendar, recent activity, and appointments. Figures 13 and 14 show the system sidebar in its
+expanded and collapsed states, providing full-label or compact-icon navigation according to the
+user's preference.
+                              Figure 15. Owner Dashboard 1 (Web)
+
+
+
+
+                              Figure 16. Owner Dashboard 2 (Web)
+
+        Figures 15 and 16 show the owner dashboard, which provides a clinic-wide overview of
+appointments, patient records, active staff, tracked branches, unread notifications, low-stock items,
+recent activity, and the latest operational alerts.
+                          Figure 17. Branch Manager Dashboard 1 (Web)
+
+
+
+
+                          Figure 18. Branch Manager Dashboard 2 (Web)
+
+        Figures 17 and 18 show the branch manager dashboard. It summarizes appointments,
+patients, branch staff, the live queue, notifications, stock alerts, branch activity, the clinic calendar,
+and recent branch alerts.
+                             Figure 19. Dentist Dashboard 1 (Web)
+
+
+
+
+                             Figure 20. Dentist Dashboard 2 (Web)
+
+       Figures 19 and 20 show the dentist dashboard, where a dentist can review the daily
+schedule, assigned patients, material usage, unread alerts, recent account activity, the monthly
+calendar, and today's appointments.
+                            Figure 21. Front Desk Dashboard 1 (Web)
+
+
+
+
+                            Figure 22. Front Desk Dashboard 2 (Web)
+
+        Figures 21 and 22 show the front desk dashboard. It presents the branch schedule,
+registered patients, live queue, unread notifications, pending confirmations, new registrations, and
+shortcuts for patient and appointment management.
+Figure 23. Patient Dashboard 1 (Web)
+
+
+
+
+Figure 24. Patient Dashboard 2 (Web)
+                  Figure 25. Recommended Visit Window Explanation (Web)
+
+        Figures 23 through 25 show the patient dashboard and its visit-guidance explanation.
+Patients can review the calendar, selected-day schedule, appointments, daily Oral Health
+Management status, and recommended visit window, including the clinic, system, and recent oral-
+health information used to determine the guidance.
+Figure 26. NgitifyBot (Web)
+                            Figure 27. Conversation History (Web)
+
+       Figures 26 and 27 show NgitifyBot and its conversation-history panel. Users can ask role-
+permitted questions, start a new conversation, reopen recent conversations, and manage saved
+chats.
+Figure 28. Schedule Management (Web)
+                           Figure 29. Create Schedule Entry (Web)
+
+        Figures 28 and 29 show schedule management and the Create Schedule Entry form.
+Authorized users can review clinic schedules and create entries by selecting a source, branch,
+patient, dentist, date, procedure, time, status, and optional notes.
+               Figure 30. My Appointments (Web)
+
+
+
+
+     Figure 31. Book Appointment - Branch Selection (Web)
+
+
+
+
+Figure 32. Book Appointment - Date and Procedure Selection (Web)
+        Figures 30, 31, and 32 show the web appointment area and booking workflow. A patient
+can review appointment counts and statuses, select a branch, view its booking rules, and choose
+an available date and procedure before continuing.
+
+
+
+
+                               Figure 33. Manage Patients (Web)
+
+
+
+
+                         Figure 34. Add New Patient - Identity (Web)
+
+        Figures 33 and 34 show patient management and the first step of adding a patient.
+Authorized staff can search and filter patient records, perform record actions, export data, and
+enter a new patient's identity information.
+Figure 35. Electronic Medical Record - Patient Profile Overview (Web)
+
+
+
+
+ Figure 36. Electronic Medical Record - Patient Profile Details (Web)
+Figure 37. Electronic Medical Record - Medical and Dental History 1 (Web)
+
+
+
+
+Figure 38. Electronic Medical Record - Medical and Dental History 2 (Web)
+          Figure 39. Electronic Medical Record - Medical and Dental History 3 (Web)
+
+        Figures 35 through 39 show the patient profile and the medical and dental history sections
+of the electronic medical record. These views consolidate demographic, contact, consent, allergy,
+medical-condition, medication, and related clinical information for authorized review.
+
+
+
+
+               Figure 40. Electronic Medical Record - Treatment History 1 (Web)
+
+
+
+
+               Figure 41. Electronic Medical Record - Treatment History 2 (Web)
+        Figures 40 and 41 show treatment-history views in the electronic medical record. Users
+can review treatment dates, procedures, dentists, clinical details, and other recorded information
+for each visit.
+
+
+
+
+                              Figure 42. Add Treatment Log (Web)
+                             Figure 43. Add Treatment Notes (Web)
+
+       Figures 42 and 43 show the forms for adding a treatment log and its clinical notes. Staff
+can record the procedure, category, branch, charges, next appointment, and follow-up instructions.
+
+
+
+
+                           Figure 44. Clinical 2D Odontogram (Web)
+Figure 45. Update Odontogram Entry 1 (Web)
+Figure 46. Update Odontogram Entry 2 (Web)
+
+
+
+
+   Figure 47. Odontogram Legend (Web)
+                              Figure 48. Odontogram History (Web)
+
+        Figures 44 through 48 show the clinical odontogram, tooth-entry workflow, legend, and
+odontogram history. Dental staff can select a tooth and surface, record its stage and condition, add
+clinical notes, and review previously recorded odontogram changes.
+
+
+
+
+                              Figure 49. Radiograph History (Web)
+Figure 50. AI-Assisted Radiograph Review (Web)
+
+
+
+
+     Figure 51. Upload Radiograph (Web)
+      Figure 52. Radiograph Viewer (Web)
+
+
+
+
+Figure 53. AI Radiograph Analysis - Quality (Web)
+Figure 54. AI Radiograph Analysis - Findings (Web)
+Figure 55. AI Radiograph Analysis - Summary (Web)
+                   Figure 56. Dentist-Approved Radiograph Summary (Web)
+
+        Figures 49 through 56 show radiograph history, uploading, viewing, AI-assisted review,
+and the dentist-approved summary. The system stores radiograph details, presents quality and
+finding suggestions for professional verification, and preserves the approved interpretation in the
+patient's record.
+
+
+
+
+                               Figure 57. Inventory Tracker (Web)
+ Figure 58. Inventory Item Details (Web)
+
+
+
+
+Figure 59. Add New Inventory Item (Web)
+
+
+
+
+ Figure 60. Add Supply or Stock (Web)
+                            Figure 61. Edit Inventory Item (Web)
+
+       Figures 57 through 61 show the inventory tracker and item-maintenance screens.
+Authorized users can monitor stock levels and expiry status, inspect item history, create an
+inventory item, add stock, and update item details.
+
+
+
+
+                           Figure 62. Material Usage Log 1 (Web)
+
+
+
+
+                           Figure 63. Material Usage Log 2 (Web)
+                          Figure 64. Log New Material Usage (Web)
+
+       Figures 62, 63, and 64 show the material usage log and the form for recording materials
+consumed during a completed appointment. Recorded quantities are deducted from inventory to
+keep stock balances current.
+Figure 65. Manage Secretaries (Web)
+
+
+
+
+Figure 66. Add New Secretary (Web)
+                           Figure 67. Edit Secretary Profile (Web)
+
+         Figures 65, 66, and 67 show secretary account management. Administrators can search,
+filter, add, and edit secretary profiles and assign each secretary to a clinic branch.
+
+
+
+
+                             Figure 68. Manage Dentists (Web)
+                                Figure 69. Add New Dentist (Web)
+
+
+
+
+                               Figure 70. Edit Dentist Profile (Web)
+
+       Figures 68, 69, and 70 show dentist account management. Administrators can create and
+update dentist profiles, including professional credentials, specialization, contact information, and
+branch assignment.
+Figure 71. Manage Branch Managers (Web)
+
+
+
+
+Figure 72. Add New Branch Manager (Web)
+                           Figure 73. Edit Branch Manager (Web)
+
+        Figures 71, 72, and 73 show branch-manager account management. Administrators can add
+or edit a manager's personal information and assigned branch.
+
+
+
+
+                              Figure 74. Manage Owners (Web)
+                             Figure 75. Add New Owner (Web)
+
+
+
+
+                               Figure 76. Edit Owner (Web)
+
+      Figures 74, 75, and 76 show owner account management. Administrators can add and edit
+owners, configure their clinic access, and maintain professional and contact information.
+   Figure 77. Notifications (Web)
+
+
+
+
+Figure 78. Notification Details (Web)
+        Figures 77 and 78 show the notification list and an expanded notification. Users can search
+and filter notices, mark them as read or unread, and review the type, status, timestamp, message,
+and reference details.
+
+
+
+
+                             Figure 79. Branch Management (Web)
+
+
+
+
+                               Figure 80. Add New Branch (Web)
+Figure 81. Branch Details (Web)
+                                  Figure 82. Edit Branch (Web)
+
+       Figures 79 through 82 show branch management. Administrators can review all branches,
+add a branch and its address, inspect branch statistics and activity, and update branch information
+or manager assignment.
+ Figure 83. My Activity Logs (Web)
+
+
+
+
+Figure 84. Activity Log Details (Web)
+Figure 85. System Audit Logs (Web)
+
+
+
+
+Figure 86. Audit Log Details (Web)
+        Figures 83 through 86 show personal activity logs and system-wide audit logs with their
+detail views. These records identify the date, time, user, category, action, and recorded message
+for accountability and security review.
+
+
+
+
+                  Figure 87. System Configuration - Clinic Information (Web)
+Figure 88. System Configuration - Appointment Settings (Web)
+
+
+
+
+  Figure 89. System Configuration - Email Templates (Web)
+                   Figure 90. System Configuration - Feature Toggles (Web)
+
+        Figures 87 through 90 show system configuration for clinic information, appointment
+rules, email templates, and feature toggles. Administrators can maintain clinic details, booking
+limits and procedures, system messages, and module availability.
+
+
+
+
+                         Figure 91. Website Content - Branding (Web)
+                      Figure 92. Website Content - Logo Settings (Web)
+
+      Figures 91 and 92 show website branding settings. Administrators can update public-facing
+names and social links as well as the website logo and standalone logo icon.
+Figure 93. Website Content - Home Page 1 (Web)
+Figure 94. Website Content - Home Page 2 (Web)
+Figure 95. Website Content - Home Page 3 (Web)
+                       Figure 96. Website Content - Home Page 4 (Web)
+
+       Figures 93 through 96 show the configurable content of the public home page.
+Administrators can manage hero and comfort images, headings, call-to-action labels, service copy,
+journey content, highlights, and related home-page text.
+Figure 97. Website Content - About and Locations 1 (Web)
+Figure 98. Website Content - About and Locations 2 (Web)
+                   Figure 99. Website Content - About and Locations 3 (Web)
+
+         Figures 97, 98, and 99 show the configurable About and Locations content. These settings
+control the page imagery, location highlights, titles, descriptions, calls to action, and supporting
+clinic information.
+Figure 100. Website Content - Services 1 (Web)
+Figure 101. Website Content - Services 2 (Web)
+                       Figure 102. Website Content - Services 3 (Web)
+
+        Figures 100, 101, and 102 show the configurable Services page. Administrators can
+manage the page image and descriptive content and add or remove individual service cards with
+their category, image, procedures, title, and description.
+Figure 103. Website Content - Contact 1 (Web)
+Figure 104. Website Content - Contact 2 (Web)
+                         Figure 105. Website Content - Contact 3 (Web)
+
+       Figures 103, 104, and 105 show the configurable Contact page. The settings manage
+contact imagery, social and map images, call-to-action labels, contact titles, form labels, and the
+page description.
+Figure 106. Website Content - Appointment 1 (Web)
+Figure 107. Website Content - Appointment 2 (Web)
+                     Figure 108. Website Content - Appointment 3 (Web)
+
+        Figures 106, 107, and 108 show the configurable Appointment page. Administrators can
+set appointment imagery, labels, guidance text, form wording, branch choices, and guest-booking
+instructions.
+
+
+
+
+                              Figure 109. Archive Review (Web)
+       Figure 109 shows the archive review page, where authorized users can search archived
+records, filter them by role or review status, inspect the archive reason, and restore eligible
+accounts.
+
+
+
+
+                              Figure 110. Database Backup (Web)
+
+
+
+
+                          Figure 111. Database Backup History (Web)
+
+        Figures 110 and 111 show database backup status, automated scheduling, retention
+settings, verification information, and backup history. Administrators can create, verify, restore,
+and monitor protected system backups.
+Figure 112. Integrity Tools 1 (Web)
+
+
+
+
+Figure 113. Integrity Tools 2 (Web)
+            Figure 114. Integrity Tools 3 (Web)
+
+
+
+
+Figure 115. Integrity Tools - Stale Unverified Accounts (Web)
+               Figure 116. Integrity Tools - Assigned Dentist Mismatches (Web)
+
+       Figures 112 through 116 show system integrity checks and detailed issue lists. The tools
+scan appointments, branches, inventory, security records, and patient assignments, then allow
+authorized users to review warnings and apply supported fixes.
+
+
+
+
+                               Figure 117. My Profile 1 (Web)
+                              Figure 118. My Profile 2 (Web)
+
+      Figures 117 and 118 show the web profile page, which presents the user's personal,
+demographic, home-address, and account information and provides access to profile editing.
+                           Figure 119. Change Email Address (Web)
+
+       Figure 119 shows the Change Email Address form. The user enters a new email address
+and current password, verifies the request, and receives an activation link for the new address.
+                          Figure 120. Account Security Settings (Web)
+
+
+
+
+                             Figure 121. Notification Settings (Web)
+
+        Figures 120 and 121 show account security and notification settings. Users can update their
+password or security questions and choose which account, appointment, and dental-care
+notifications they receive.
+   Figure 122. My Appointments - Empty State (Web)
+
+
+
+
+Figure 123. My Appointments - Appointment Entry (Web)
+Figure 124. Appointment Details (Web)
+Figure 125. Reschedule Appointment (Web)
+Figure 126. Cancel Appointment (Web)
+
+
+
+
+Figure 127. Appointment History (Web)
+                       Figure 128. Cancelled Appointment Details (Web)
+
+       Figures 122 through 128 show appointment-list states, appointment details, rescheduling,
+cancellation, appointment history, and cancelled-appointment details. Patients can review current
+and past requests and, when permitted, change or cancel a pending appointment with a reason.
+
+
+
+
+                 Figure 129. Book Appointment - Branch and Procedure (Web)
+Figure 130. Book Appointment - Select Date (Web)
+
+
+
+
+Figure 131. Book Appointment - Select Time (Web)
+Figure 132. Book Appointment - Procedure and Notes (Web)
+
+
+
+
+Figure 133. Book Appointment - Review and Confirm (Web)
+                          Figure 134. Privacy Policy Summary (Web)
+
+
+
+
+                             Figure 135. Booking Submitted (Web)
+
+
+
+
+                        Figure 136. Active Appointment Conflict (Web)
+
+       Figures 129 through 136 show the complete web booking workflow. The patient selects a
+branch, date, time, and procedure; adds notes; reviews the privacy summary; confirms the request;
+and receives either a submission confirmation or a notice about an existing active appointment.
+Figure 137. Oral Health Management Dashboard (Web)
+
+
+
+
+     Figure 138. Oral Health Log Details (Web)
+Figure 139. Edit Oral Health Log (Web)
+
+
+
+
+ Figure 140. Symptom Context (Web)
+Figure 141. Oral Health Log - Empty State (Web)
+Figure 142. Oral Health Calendar (Web)
+                             Figure 143. Oral Health Trends (Web)
+
+
+
+
+                          Figure 144. Oral Health Risk Factors (Web)
+
+        Figures 137 through 144 show web-based Oral Health Management. Patients can view a
+calendar and trends, open or edit daily logs, record symptom context and risk factors, and review
+recent patterns while clinical entries remain read-only where appropriate.
+                      Figure 145. Dental Health Education Library (Web)
+
+
+
+
+                      Figure 146. Dental Health Education Article (Web)
+
+       Figures 145 and 146 show the dental health education library and an article view. Patients
+can browse approved topics and open concise educational guidance related to daily oral care.
+Mobile Application
+
+
+
+
+                     Figure 147. Login (Mobile)
+Figure 148. Set New Password (Mobile)
+Figure 149. Forgot Password (Mobile)
+                  Figure 150. Email Verification - Forgot Password (Mobile)
+
+       Figures 147 through 150 show mobile login and password recovery. A patient can sign in,
+request a reset using a registered email address, enter the verification code, and create a new
+password.
+                           Figure 151. Home Dashboard (Mobile)
+
+
+
+
+                              Figure 152. Care Tools (Mobile)
+
+       Figures 151 and 152 show the mobile home dashboard and care tools. The dashboard
+summarizes the next visit and oral-health activity, while the tools provide direct access to
+appointments, the electronic medical record, Oral Health Management, and settings.
+Figure 153. NgitifyBot (Mobile)
+Figure 154. Conversation History (Mobile)
+
+
+
+
+Figure 155. Conversation Options (Mobile)
+                         Figure 156. Archived Conversations (Mobile)
+
+        Figures 153 through 156 show NgitifyBot on mobile and its conversation-management
+views. Patients can exchange supported messages, open conversation history, rename, pin, archive,
+or delete a chat, and revisit archived conversations.
+Figure 157. Oral Health Management (Mobile)
+Figure 158. Oral Health Calendar (Mobile)
+   Figure 159. Daily Oral Health Log (Mobile)
+
+
+
+
+Figure 160. Log Oral Health - Symptoms (Mobile)
+      Figure 161. Symptom Details (Mobile)
+
+
+
+
+Figure 162. Log Oral Health - Care Habits (Mobile)
+                     Figure 163. Log Oral Health - Risk Factors (Mobile)
+
+
+
+
+                        Figure 164. Review Oral Health Log (Mobile)
+
+       Figures 157 through 164 show the mobile Oral Health Management dashboard, calendar,
+and four-step daily logging workflow. Patients record symptoms, optional symptom context, daily
+care habits, risk factors, and notes, then review the information before saving the log.
+  Figure 165. Oral Health Trends - 7 Days (Mobile)
+
+
+
+
+ Figure 166. Oral Health Trends - 30 Days (Mobile)
+
+
+
+
+Figure 167. Oral Health Trends - Care Habits (Mobile)
+                     Figure 168. Oral Health Trends - Symptoms (Mobile)
+
+
+
+
+                    Figure 169. Oral Health Trends - Risk Factors (Mobile)
+
+        Figures 165 through 169 show oral-health trends for seven- and thirty-day periods. The
+views summarize check-ins, care habits, symptoms, and risk factors so patients can recognize
+patterns in their recorded data.
+Figure 170. Recommended Visit Window (Mobile)
+Figure 171. Oral Health Calendar - Selected Date (Mobile)
+
+
+
+
+      Figure 172. Suggested Next Action (Mobile)
+
+
+
+
+    Figure 173. Current Oral Health Factors (Mobile)
+                        Figure 174. Edit Oral Health Factors (Mobile)
+
+        Figures 170 through 174 show guidance generated from recent oral-health logs, including
+a recommended visit window, selected-date context, suggested next actions, and editable current
+factors. These items support patient awareness without replacing professional diagnosis.
+   Figure 175. Dental Health Education (Mobile)
+
+
+
+
+Figure 176. Dental Health Education Library (Mobile)
+                     Figure 177. Dental Health Education Article (Mobile)
+
+        Figures 175 through 177 show mobile dental health education. Patients can open the
+education area, browse approved topics, and read an article containing practical, non-diagnostic
+oral-care guidance.
+
+
+
+
+                        Figure 178. Appointments Dashboard (Mobile)
+      Figure 179. Past Visits (Mobile)
+
+
+
+
+Figure 180. Reschedule Appointment (Mobile)
+                         Figure 181. Cancel Appointment (Mobile)
+
+       Figures 178 through 181 show mobile appointment management. Patients can view
+upcoming and past visits and submit a permitted reschedule or cancellation request with the
+required details.
+Figure 182. Electronic Medical Record - Medical and Dental History (Mobile)
+Figure 183. Electronic Medical Record - Treatment History (Mobile)
+Figure 184. Electronic Medical Record - Odontogram (Mobile)
+
+
+
+
+     Figure 185. Odontogram Tooth Details 1 (Mobile)
+                       Figure 186. Odontogram Tooth Details 2 (Mobile)
+
+
+
+
+                           Figure 187. Odontogram History (Mobile)
+
+        Figures 182 through 187 show the mobile electronic medical record for medical and dental
+history, treatment history, odontogram data, tooth details, and odontogram history. The screens
+provide authorized, read-only access to clinical information recorded by the dental team.
+Figure 188. Radiograph History (Mobile)
+                          Figure 189. Radiograph Viewer (Mobile)
+
+       Figures 188 and 189 show mobile radiograph history and the radiograph viewer. Patients
+can open a stored image and review the dentist-approved summary and related treatment
+information.
+Figure 190. Profile (Mobile)
+Figure 191. Edit Profile (Mobile)
+Figure 192. My Details (Mobile)
+Figure 193. Activity Logs (Mobile)
+                                 Figure 194. Settings (Mobile)
+
+        Figures 190 through 194 show the mobile profile, editable profile information, personal
+details, activity logs, and settings. Patients can maintain account information, review recorded
+account actions, and access security and notification controls.
+
+
+
+
+                    Figure 195. Change Password - Verify Identity (Mobile)
+                  Figure 196. Change Password - Set New Password (Mobile)
+
+
+
+
+                         Figure 197. Change Email Address (Mobile)
+
+
+
+
+                           Figure 198. Notification Settings (Mobile)
+
+        Figures 195 through 198 show mobile security and notification settings. Users can verify
+their identity and set a new password, request an email-address change, and choose which
+appointment, visit-window, oral-health, symptom, and education reminders are enabled.
+
