@@ -5,6 +5,7 @@ import styles from '../../styles/website/WebsiteShell.module.css';
 import { usePublicClinicConfig } from '../../hooks/usePublicClinicConfig';
 import { websiteMediaDefaults } from '../../data/websiteMediaDefaults';
 import WebsiteImage from './WebsiteImage';
+import WebsiteFooter from './WebsiteFooter';
 
 const navItems = [
     { label: 'Home', path: '/' },
@@ -139,6 +140,8 @@ export default function WebsiteShell({ children }) {
             {menuOpen ? <button className={styles.menuBackdrop} type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)} /> : null}
 
             <main className={styles.content}>{children}</main>
+
+            <WebsiteFooter />
 
             <div className={styles.mobileQuickBar}>
                 <a href={`tel:${clinicInfo.contactNumber}`} className={styles.mobileQuickAction}>
