@@ -3,9 +3,9 @@
   "name": "Dentime Dental Clinic - NgitiFy",
   "icons": [
     {
-      "src": "logo.svg",
-      "type": "image/svg+xml",
-      "sizes": "any"
+      "src": "ngitify_logo.png",
+      "type": "image/png",
+      "sizes": "2000x2000"
     }
   ],
   "start_url": ".",
