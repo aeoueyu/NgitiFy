@@ -4,7 +4,7 @@
     "slug": "ngitify-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/ngitify_logo.png",
+    "icon": "./assets/ngitify-app.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "platforms": [
@@ -26,7 +26,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/ngitify_logo.png",
+        "foregroundImage": "./assets/ngitify-app.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
