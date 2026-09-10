@@ -1015,6 +1015,9 @@ const corsOptions = {
 app.use(helmet());
 app.use(cors(corsOptions));
 app.use((req, res, next) => {
+    if (req.method === 'POST' && req.path === '/api/webhooks/resend') {
+        return express.raw({ type: 'application/json', limit: '1mb' })(req, res, next);
+    }
     const parser = isLargePayloadRoute(req) ? largeJsonParser : defaultJsonParser;
     parser(req, res, next);
 });
@@ -1028,6 +1031,63 @@ app.use('/api', integrityRoutes);
 // EMAIL CONFIG
 const resend = new Resend(process.env.RESEND_API_KEY);
 console.log('✅ Resend email client initialized');
+
+const requireSuccessfulEmailSend = (result, fallbackMessage = 'Email provider rejected the message.') => {
+    if (result?.error || !result?.data?.id) {
+        const error = new Error(result?.error?.message || fallbackMessage);
+        error.code = 'EMAIL_SEND_FAILED';
+        error.providerError = result?.error || null;
+        throw error;
+    }
+    return result.data;
+};
+
+app.post('/api/webhooks/resend', async (req, res) => {
+    try {
+        if (!process.env.RESEND_WEBHOOK_SECRET) {
+            return res.status(503).json({ message: 'Resend webhook is not configured.' });
+        }
+
+        const event = resend.webhooks.verify({
+            payload: Buffer.isBuffer(req.body) ? req.body.toString('utf8') : String(req.body || ''),
+            headers: {
+                id: req.headers['svix-id'],
+                timestamp: req.headers['svix-timestamp'],
+                signature: req.headers['svix-signature'],
+            },
+            webhookSecret: process.env.RESEND_WEBHOOK_SECRET,
+        });
+        const deliveryStatusByEvent = {
+            'email.delivered': 'delivered',
+            'email.delivery_delayed': 'delayed',
+            'email.failed': 'failed',
+            'email.bounced': 'bounced',
+        };
+        const deliveryStatus = deliveryStatusByEvent[event?.type];
+        const messageId = event?.data?.email_id;
+
+        if (deliveryStatus && messageId) {
+            const account = await User.findOneAndUpdate(
+                { pendingEmailMessageId: messageId },
+                { $set: { pendingEmailDeliveryStatus: deliveryStatus } },
+                { new: true }
+            );
+            if (account) {
+                await AuditLog.create({
+                    action: 'EMAIL_CHANGE_DELIVERY_STATUS',
+                    user: account.email,
+                    role: account.role,
+                    details: `Pending email change delivery status: ${deliveryStatus}.`,
+                });
+            }
+        }
+
+        return res.json({ received: true });
+    } catch (error) {
+        console.error('Invalid Resend webhook:', error.message);
+        return res.status(400).json({ message: 'Invalid webhook signature.' });
+    }
+});
 
 // ================= PUBLIC ROUTES ================= //
 
@@ -1119,22 +1179,32 @@ app.get('/api/activate-account/:token', async (req, res) => {
         const { token } = req.params;
         if (!token) return res.status(400).json({ message: "No token provided." });
 
-        const account = await User.findOne({ activationToken: token });
+        const account = await User.findOne({
+            $or: [
+                { activationToken: token },
+                { pendingEmailChangeToken: token },
+            ],
+        });
 
         if (!account) return res.status(400).json({ message: "Invalid or expired activation link." });
-        if (account.activationTokenExpires && new Date(account.activationTokenExpires) < new Date()) {
+        const isEmailChange = account.pendingEmailChangeToken === token;
+        if (isEmailChange && account.pendingEmailChangeTokenExpires && new Date(account.pendingEmailChangeTokenExpires) < new Date()) {
+            return res.status(400).json({ message: "Invalid or expired email verification link." });
+        }
+        if (!isEmailChange && account.activationTokenExpires && new Date(account.activationTokenExpires) < new Date()) {
             return res.status(400).json({ message: "Invalid or expired activation link." });
         }
 
-        const requiresPasswordSetup = account.isPasswordChanged !== true;
+        const requiresPasswordSetup = isEmailChange ? false : account.isPasswordChanged !== true;
         const suggestMobileApp = await shouldSuggestMobileAppAfterActivation(account, requiresPasswordSetup);
 
         res.json({
-            message: 'Activation link is valid.',
-            email: account.email,
+            message: isEmailChange ? 'Email verification link is valid.' : 'Activation link is valid.',
+            email: isEmailChange ? account.pendingEmail : account.email,
             role: account.role,
             requiresPasswordSetup,
             suggestMobileApp,
+            isEmailChange,
         });
     } catch (error) {
         console.error("Activation validation error:", error);
@@ -1146,11 +1216,62 @@ app.post('/api/activate-account', async (req, res) => {
     try {
         const { token, newPassword } = req.body;
         if (!token) return res.status(400).json({ message: "No token provided." });
-        const account = await User.findOne({ activationToken: token });
+        const account = await User.findOne({
+            $or: [
+                { activationToken: token },
+                { pendingEmailChangeToken: token },
+            ],
+        });
 
         if (!account) return res.status(400).json({ message: "Invalid or expired activation link." });
-        if (account.activationTokenExpires && new Date(account.activationTokenExpires) < new Date()) {
+        const isEmailChange = account.pendingEmailChangeToken === token;
+        if (isEmailChange && account.pendingEmailChangeTokenExpires && new Date(account.pendingEmailChangeTokenExpires) < new Date()) {
+            return res.status(400).json({ message: "Invalid or expired email verification link." });
+        }
+        if (!isEmailChange && account.activationTokenExpires && new Date(account.activationTokenExpires) < new Date()) {
             return res.status(400).json({ message: "Invalid or expired activation link." });
+        }
+
+        if (isEmailChange) {
+            const pendingEmail = normalizeEmail(account.pendingEmail || '');
+            if (!pendingEmail) {
+                return res.status(400).json({ message: 'This email change request is no longer available.' });
+            }
+            const conflict = await User.exists({
+                _id: { $ne: account._id },
+                $or: [{ email: pendingEmail }, { pendingEmail }],
+            });
+            if (conflict) {
+                return res.status(409).json({ message: 'That email address is no longer available.' });
+            }
+
+            const oldEmail = account.email;
+            account.email = pendingEmail;
+            account.pendingEmail = undefined;
+            account.pendingEmailChangeToken = undefined;
+            account.pendingEmailChangeTokenExpires = null;
+            account.pendingEmailChangeRequestedAt = null;
+            account.pendingEmailDeliveryStatus = undefined;
+            account.pendingEmailMessageId = undefined;
+            account.lastEmailChangeRequestedAt = new Date();
+            await account.save();
+
+            await AuditLog.create({
+                action: 'EMAIL_CHANGE_COMPLETED',
+                user: account.email,
+                role: account.role,
+                details: `Email address changed from ${oldEmail} to ${account.email}.`,
+            });
+            sendEmailChangeSecurityNotice(oldEmail, account.email).catch((error) => {
+                console.error('Old-address email change notice failed:', error.message);
+            });
+
+            return res.json({
+                message: 'Email address verified and updated successfully. Sign in using your new email and existing password.',
+                role: account.role,
+                suggestMobileApp: false,
+                isEmailChange: true,
+            });
         }
 
         const requiresPasswordSetup = account.isPasswordChanged !== true;
@@ -1316,18 +1437,20 @@ const sendActivationEmail = async (email, role, tempPasswordOrActivationLink, ac
         || 'If you have questions, you may contact the clinic through the details below.';
     const intro = options?.intro || 'Please activate your account and create your password to continue.';
     const actionInstruction = options?.actionInstruction || 'Use the button below to verify your email address and set your own password.';
-    const accountCreatedMessage = options?.accountCreatedMessage || `Your <strong>${role}</strong> account has been successfully created.`;
+    const accountCreatedMessage = options?.accountCreatedMessage === undefined
+        ? `Your <strong>${role}</strong> account has been successfully created.`
+        : options.accountCreatedMessage;
     const expiryMessage = options?.expiryMessage === undefined
         ? `This activation link will expire in ${ACTIVATION_LINK_LIFETIME_LABEL}.`
         : options.expiryMessage;
 
-    await resend.emails.send({
+    const result = await resend.emails.send({
         from: 'NgitiFy Admin <noreply@ngitify.com>',
         to: email,
-        subject: 'Welcome to NgitiFy! Activate Your Account',
+        subject: options?.subject || 'Welcome to NgitiFy! Activate Your Account',
         html: buildDentimeEmailTemplate({
             clinic,
-            title: 'Welcome to NgitiFy',
+            title: options?.title || 'Welcome to NgitiFy',
             intro,
             bodyHtml: `
                 <p style="margin:0 0 14px 0;">Hello,</p>
@@ -1338,10 +1461,31 @@ const sendActivationEmail = async (email, role, tempPasswordOrActivationLink, ac
                 ${expiryMessage ? `<p style="margin:0 0 14px 0;">${expiryMessage}</p>` : ''}
                 <p style="margin:0;">${closingMessage}</p>
             `,
-            ctaLabel: 'Activate Account',
+            ctaLabel: options?.ctaLabel || 'Activate Account',
             ctaUrl: resolvedActivationLink,
         }),
+        ...(Array.isArray(options?.tags) && options.tags.length > 0 ? { tags: options.tags } : {}),
     });
+    return requireSuccessfulEmailSend(result, 'Unable to send the verification email.');
+};
+
+const sendEmailChangeSecurityNotice = async (oldEmail, newEmail) => {
+    const clinic = await getClinicContactDetails();
+    const result = await resend.emails.send({
+        from: 'NgitiFy Admin <noreply@ngitify.com>',
+        to: oldEmail,
+        subject: 'Your NgitiFy email address was changed',
+        html: buildDentimeEmailTemplate({
+            clinic,
+            title: 'Email Address Changed',
+            intro: 'This is a security notification for your NgitiFy account.',
+            bodyHtml: `
+                <p style="margin:0 0 14px 0;">The sign-in email for your account was changed to <strong>${escapeHtml(newEmail)}</strong>.</p>
+                <p style="margin:0;">If you did not make this change, contact the clinic immediately.</p>
+            `,
+        }),
+    });
+    return requireSuccessfulEmailSend(result, 'Unable to send the security notification.');
 };
 
 const TEMP_PASSWORD_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
@@ -5483,7 +5627,12 @@ app.post('/api/check-email', async (req, res) => {
             return res.status(400).json({ message: "A valid email is required" });
         }
 
-        const query = { email: normalizedEmail };
+        const query = {
+            $or: [
+                { email: normalizedEmail },
+                { pendingEmail: normalizedEmail },
+            ],
+        };
         if (excludeId) {
             query._id = { $ne: excludeId };
         }
@@ -7389,8 +7538,11 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
 // REQUEST EMAIL CHANGE (from profile page)
 // Verifies current password, then triggers re-activation
 // -------------------------------------------------------
-app.post('/api/user/request-email-change', verifyToken, async (req, res) => {
+app.post('/api/user/request-email-change', verifyToken, otpLimiter, async (req, res) => {
     try {
+        if (req.user.role !== 'administrator') {
+            return res.status(403).json({ message: 'Only administrators can change their email address.' });
+        }
         const { newEmail, currentPassword } = req.body;
 
         if (!newEmail || !currentPassword) {
@@ -7433,42 +7585,85 @@ app.post('/api/user/request-email-change', verifyToken, async (req, res) => {
             }
         }
 
-        const emailExists = await User.findOne({ email: normalizedNewEmail });
+        if (user.pendingEmail) {
+            return res.status(409).json({
+                message: `A verification request is already pending for ${user.pendingEmail}. Resend or cancel it before choosing another email.`,
+                pendingEmail: user.pendingEmail,
+            });
+        }
+
+        const emailExists = await User.findOne({
+            _id: { $ne: user._id },
+            $or: [{ email: normalizedNewEmail }, { pendingEmail: normalizedNewEmail }],
+        });
         if (emailExists) {
             return res.status(409).json({ message: 'Email already exists.' });
         }
 
-        const activationToken = crypto.randomBytes(32).toString('hex');
-
-        user.email = normalizedNewEmail;
-        user.activationToken = activationToken;
-        user.activationTokenExpires = new Date(Date.now() + ACTIVATION_LINK_LIFETIME_MS);
-        user.isVerified = false;
-        user.status = 'inactive';
-        user.lastEmailChangeRequestedAt = new Date();
-        user.temporaryPasswordExpires = null;
-        user.resetPasswordOtp = undefined;
-        user.resetPasswordExpires = undefined;
+        const emailChangeToken = crypto.randomBytes(32).toString('hex');
+        user.pendingEmail = normalizedNewEmail;
+        user.pendingEmailChangeToken = emailChangeToken;
+        user.pendingEmailChangeTokenExpires = new Date(Date.now() + ACTIVATION_LINK_LIFETIME_MS);
+        user.pendingEmailChangeRequestedAt = new Date();
+        user.pendingEmailDeliveryStatus = 'accepted';
+        user.pendingEmailMessageId = undefined;
         await user.save();
 
-        const activationLink = `${process.env.FRONTEND_URL}/activate-account/${activationToken}`;
-        await sendActivationEmail(normalizedNewEmail, user.role, activationLink, '', {
-            intro: 'Please verify your new email address to continue using your account.',
-            actionInstruction: 'Use the button below to verify your new email address. Your current password will stay the same after activation.',
-            closingMessage: 'After you verify the new email, sign in again using the same password you were already using before this email change.',
-        });
+        const verificationLink = `${process.env.FRONTEND_URL}/activate-account/${emailChangeToken}`;
+        let emailResult;
+        try {
+            emailResult = await sendActivationEmail(normalizedNewEmail, user.role, verificationLink, '', {
+                subject: 'Verify your new NgitiFy email address',
+                title: 'Verify Your New Email',
+                ctaLabel: 'Verify Email Address',
+                intro: 'A request was made to use this email address for an existing NgitiFy account.',
+                accountCreatedMessage: '',
+                actionInstruction: 'Use the button below to verify this address. Your current sign-in email and account access remain unchanged until verification is complete.',
+                closingMessage: 'If you did not request this change, you can ignore this email.',
+                tags: [{ name: 'category', value: 'email-change' }],
+            });
+            user.pendingEmailMessageId = emailResult.id;
+            await user.save();
+        } catch (emailError) {
+            await User.updateOne(
+                { _id: user._id, pendingEmailChangeToken: emailChangeToken },
+                {
+                    $unset: {
+                        pendingEmail: 1,
+                        pendingEmailChangeToken: 1,
+                        pendingEmailDeliveryStatus: 1,
+                        pendingEmailMessageId: 1,
+                    },
+                    $set: {
+                        pendingEmailChangeTokenExpires: null,
+                        pendingEmailChangeRequestedAt: null,
+                    },
+                }
+            );
+            console.error('Email change verification send failed:', emailError.message);
+            return res.status(502).json({
+                message: 'The verification email could not be sent. Your current email and account access were not changed. Please try again.',
+            });
+        }
 
         await AuditLog.create({
             action: 'EMAIL_CHANGE_REQUESTED',
-            user: normalizedNewEmail,
+            user: user.email,
             role: user.role,
-            details: `User requested email change. Activation link sent to ${normalizedNewEmail}.`
+            details: `User requested email change from ${user.email} to ${normalizedNewEmail}. Verification is pending.`
         });
 
-        res.json({ message: 'Verification email sent. Please check your new inbox to activate your new email. Your current password will stay the same.' });
+        res.json({
+            message: 'Verification email sent. Continue signing in with your current email until the new address is verified.',
+            pendingEmail: normalizedNewEmail,
+            deliveryStatus: user.pendingEmailDeliveryStatus,
+        });
 
     } catch (error) {
         console.error('Error requesting email change:', error);
+        if (error?.code === 11000) {
+            return res.status(409).json({ message: 'Email already exists or is pending verification for another account.' });
+        }
         res.status(500).json({ message: 'Server error processing email change request.' });
     }
 });
@@ -10981,6 +11176,96 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
     } catch (error) {
         console.error('Error adding treatment log:', error);
         res.status(500).json({ message: 'Server error adding treatment log.' });
+    }
+});
+
+app.post('/api/user/resend-email-change', verifyToken, otpLimiter, async (req, res) => {
+    try {
+        if (req.user.role !== 'administrator') {
+            return res.status(403).json({ message: 'Only administrators can manage email change requests.' });
+        }
+        const user = await User.findById(req.user.id);
+        if (!user || !user.pendingEmail) {
+            return res.status(404).json({ message: 'No pending email change request was found.' });
+        }
+
+        const conflict = await User.exists({
+            _id: { $ne: user._id },
+            $or: [{ email: user.pendingEmail }, { pendingEmail: user.pendingEmail }],
+        });
+        if (conflict) {
+            return res.status(409).json({ message: 'That email address is no longer available. Cancel this request and choose another email.' });
+        }
+
+        const emailChangeToken = crypto.randomBytes(32).toString('hex');
+        const verificationLink = `${process.env.FRONTEND_URL}/activate-account/${emailChangeToken}`;
+        const emailResult = await sendActivationEmail(user.pendingEmail, user.role, verificationLink, '', {
+            subject: 'Verify your new NgitiFy email address',
+            title: 'Verify Your New Email',
+            ctaLabel: 'Verify Email Address',
+            intro: 'Here is your new verification link for the pending email change.',
+            accountCreatedMessage: '',
+            actionInstruction: 'Use the button below to verify this address. Your current email remains active until verification is complete.',
+            closingMessage: 'If you did not request this change, sign in with your current email and cancel the request.',
+            tags: [{ name: 'category', value: 'email-change' }],
+        });
+
+        user.pendingEmailChangeToken = emailChangeToken;
+        user.pendingEmailChangeTokenExpires = new Date(Date.now() + ACTIVATION_LINK_LIFETIME_MS);
+        user.pendingEmailChangeRequestedAt = new Date();
+        user.pendingEmailDeliveryStatus = 'accepted';
+        user.pendingEmailMessageId = emailResult.id;
+        await user.save();
+
+        await AuditLog.create({
+            action: 'EMAIL_CHANGE_RESENT',
+            user: user.email,
+            role: user.role,
+            details: `Email change verification resent to ${user.pendingEmail}.`,
+        });
+        return res.json({
+            message: `A new verification link was sent to ${user.pendingEmail}.`,
+            pendingEmail: user.pendingEmail,
+            deliveryStatus: user.pendingEmailDeliveryStatus,
+        });
+    } catch (error) {
+        console.error('Error resending email change verification:', error.message);
+        return res.status(error.code === 'EMAIL_SEND_FAILED' ? 502 : 500).json({
+            message: error.code === 'EMAIL_SEND_FAILED'
+                ? 'The verification email could not be sent. Your current account access is unchanged.'
+                : 'Server error resending email verification.',
+        });
+    }
+});
+
+app.delete('/api/user/pending-email-change', verifyToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'administrator') {
+            return res.status(403).json({ message: 'Only administrators can manage email change requests.' });
+        }
+        const user = await User.findById(req.user.id);
+        if (!user || !user.pendingEmail) {
+            return res.status(404).json({ message: 'No pending email change request was found.' });
+        }
+        const cancelledEmail = user.pendingEmail;
+        user.pendingEmail = undefined;
+        user.pendingEmailChangeToken = undefined;
+        user.pendingEmailChangeTokenExpires = null;
+        user.pendingEmailChangeRequestedAt = null;
+        user.pendingEmailDeliveryStatus = undefined;
+        user.pendingEmailMessageId = undefined;
+        await user.save();
+
+        await AuditLog.create({
+            action: 'EMAIL_CHANGE_CANCELLED',
+            user: user.email,
+            role: user.role,
+            details: `Cancelled pending email change to ${cancelledEmail}.`,
+        });
+        return res.json({ message: 'Pending email change cancelled. Your current email remains active.' });
+    } catch (error) {
+        console.error('Error cancelling email change:', error.message);
+        return res.status(500).json({ message: 'Server error cancelling email change.' });
     }
 });
 

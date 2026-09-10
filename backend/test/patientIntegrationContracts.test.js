@@ -544,7 +544,7 @@ test(
     'patient account and booking safeguards are exposed consistently on web and mobile',
     () => {
         const serverSource = readRepositoryFile('backend/server.js');
-        const webSettingsSource = readRepositoryFile('ngitify-web/src/pages/patient/PatientSettings.js');
+        const sharedWebProfileSource = readRepositoryFile('ngitify-web/src/pages/admin/AdminProfile.js');
         const mobileSettingsSource = readRepositoryFile('ngitify-mobile/src/screens/shared/SettingsScreen.js');
         const webBookingSource = readRepositoryFile('ngitify-web/src/pages/patient/PatientBooking.js');
         const webCalendarSource = readRepositoryFile('ngitify-web/src/components/patient/PatientMonthCalendar.js');
@@ -552,10 +552,14 @@ test(
         const systemConfigSource = readRepositoryFile('ngitify-web/src/pages/admin/SystemConfig.js');
 
         assert.match(serverSource, /Cancellation reason is required and must be at least 20 characters/);
-        assert.match(webSettingsSource, /\/user\/request-email-change/);
+        assert.match(sharedWebProfileSource, /\/user\/request-email-change/);
         assert.match(mobileSettingsSource, /api\/user\/request-email-change/);
-        assert.match(webSettingsSource, /\/verify-current-password/);
+        assert.match(sharedWebProfileSource, /\/verify-current-password/);
         assert.match(mobileSettingsSource, /api\/verify-current-password/);
+        assert.match(sharedWebProfileSource, /\/user\/resend-email-change/);
+        assert.match(sharedWebProfileSource, /\/user\/pending-email-change/);
+        assert.match(mobileSettingsSource, /'resend-email-change'/);
+        assert.match(mobileSettingsSource, /'pending-email-change'/);
         assert.match(webBookingSource, /disabled=\{!privacySummaryViewed\}/);
         assert.match(webBookingSource, /minDate=\{todayKey\}/);
         assert.match(webBookingSource, /dateKey < todayKey/);

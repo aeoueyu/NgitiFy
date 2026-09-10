@@ -136,6 +136,8 @@ export default function SettingsScreen({ navigation }) {
     const [submittingEmailChange, setSubmittingEmailChange] = useState(false);
     const [emailFieldError, setEmailFieldError] = useState('');
     const [emailPasswordError, setEmailPasswordError] = useState('');
+    const [pendingEmail, setPendingEmail] = useState('');
+    const [pendingEmailDeliveryStatus, setPendingEmailDeliveryStatus] = useState('');
     const emailSuccessModalTimer = useRef(null);
 
     useEffect(() => () => {
@@ -196,6 +198,25 @@ export default function SettingsScreen({ navigation }) {
     useEffect(() => {
         fetchSettings();
     }, [fetchSettings]);
+
+    const fetchPendingEmailChange = useCallback(async () => {
+        if (!userId || !userToken) return;
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/user/${userId}`, {
+                headers: { Authorization: `Bearer ${userToken}` },
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) return;
+            setPendingEmail(data.pendingEmail || '');
+            setPendingEmailDeliveryStatus(data.pendingEmailDeliveryStatus || '');
+        } catch {
+            // Non-critical: the current account remains usable.
+        }
+    }, [API_BASE_URL, userId, userToken]);
+
+    useEffect(() => {
+        fetchPendingEmailChange();
+    }, [fetchPendingEmailChange]);
 
     // ── Live password checklist ──────────────────────────────────────────────
     useEffect(() => {
@@ -514,17 +535,47 @@ export default function SettingsScreen({ navigation }) {
                 throw new Error(message);
             }
             setEmailModalVisible(false);
+            setPendingEmail(data.pendingEmail || normalizedEmail);
+            setPendingEmailDeliveryStatus(data.deliveryStatus || 'accepted');
             emailSuccessModalTimer.current = setTimeout(() => {
                 showAppModal(
-                    'Request Link Sent',
-                    'Verification email sent. Please check your inbox to reactivate your account. You will now be logged out. Please verify your new email before logging in again.',
-                    [{ text: 'OK', onPress: logout }],
+                    'Verification Link Sent',
+                    'Verification email sent. Your current email and account access remain active until you verify the new address.',
+                    [{ text: 'OK' }],
                     { cancelable: false },
                 );
                 emailSuccessModalTimer.current = null;
             }, 350);
         } catch (error) {
             setEmailFieldError(error.message || 'Unable to request the email change.');
+        } finally {
+            setSubmittingEmailChange(false);
+        }
+    };
+
+    const handlePendingEmailAction = async (action) => {
+        setSubmittingEmailChange(true);
+        try {
+            const response = await fetch(
+                `${API_BASE_URL}/api/user/${action === 'resend' ? 'resend-email-change' : 'pending-email-change'}`,
+                {
+                    method: action === 'resend' ? 'POST' : 'DELETE',
+                    headers: { ...authHeader, 'Content-Type': 'application/json' },
+                }
+            );
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.message || `Unable to ${action} the email change request.`);
+
+            if (action === 'cancel') {
+                setPendingEmail('');
+                setPendingEmailDeliveryStatus('');
+            } else {
+                setPendingEmail(data.pendingEmail || pendingEmail);
+                setPendingEmailDeliveryStatus(data.deliveryStatus || 'accepted');
+            }
+            showAppModal(action === 'cancel' ? 'Request Cancelled' : 'Verification Link Sent', data.message);
+        } catch (error) {
+            showAppModal('Email Change Not Updated', error.message || `Unable to ${action} the email change request.`);
         } finally {
             setSubmittingEmailChange(false);
         }
@@ -636,6 +687,7 @@ export default function SettingsScreen({ navigation }) {
                     <TouchableOpacity
                         style={styles.menuItem}
                         onPress={openEmailModal}
+                        disabled={Boolean(pendingEmail) || submittingEmailChange}
                         activeOpacity={0.7}
                     >
                         <View style={styles.menuItemLeft}>
@@ -644,6 +696,24 @@ export default function SettingsScreen({ navigation }) {
                         </View>
                         <Text style={styles.arrow}>›</Text>
                     </TouchableOpacity>
+                    {pendingEmail ? (
+                        <View style={styles.pendingEmailBox}>
+                            <Text style={styles.pendingEmailTitle}>Pending email verification</Text>
+                            <Text style={styles.pendingEmailAddress}>{pendingEmail}</Text>
+                            {pendingEmailDeliveryStatus ? (
+                                <Text style={styles.pendingEmailStatus}>Delivery status: {pendingEmailDeliveryStatus}</Text>
+                            ) : null}
+                            <Text style={styles.pendingEmailHelp}>Your current email remains active until this address is verified.</Text>
+                            <View style={styles.pendingEmailActions}>
+                                <TouchableOpacity style={styles.pendingEmailPrimaryAction} onPress={() => handlePendingEmailAction('resend')} disabled={submittingEmailChange}>
+                                    {submittingEmailChange ? <ActivityIndicator size="small" color="#01538b" /> : <Text style={styles.pendingEmailPrimaryText}>Resend Link</Text>}
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.pendingEmailCancelAction} onPress={() => handlePendingEmailAction('cancel')} disabled={submittingEmailChange}>
+                                    <Text style={styles.pendingEmailCancelText}>Cancel Request</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    ) : null}
                     <View style={styles.divider} />
                     <TouchableOpacity
                         style={styles.menuItem}
@@ -1126,7 +1196,7 @@ export default function SettingsScreen({ navigation }) {
                         </View>
                         <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                             <Text style={styles.emailChangeNotice}>
-                                Verify your current password, then we will send an activation link to your new email. You will be logged out after the request succeeds.
+                                Verify your current password, then we will send a verification link to your new email. Your current email remains active until verification is complete.
                             </Text>
                             <Text style={styles.inputLabel}>New Email Address</Text>
                             <TextInput
@@ -1249,6 +1319,19 @@ const styles = StyleSheet.create({
     menuSub:       { fontSize: 12, color: '#aaa', marginTop: 1 },
     arrow:         { fontSize: 22, color: '#ccc' },
     divider:       { height: 1, backgroundColor: '#f0f0f0', marginHorizontal: 18 },
+    pendingEmailBox: {
+        marginHorizontal: 14, marginBottom: 12, padding: 12,
+        borderRadius: 10, borderWidth: 1, borderColor: '#f2c46d', backgroundColor: '#fff8e8',
+    },
+    pendingEmailTitle: { color: '#7c4a03', fontSize: 13, fontWeight: '700' },
+    pendingEmailAddress: { color: '#533202', fontSize: 14, fontWeight: '600', marginTop: 3 },
+    pendingEmailStatus: { color: '#7c5a14', fontSize: 12, marginTop: 3, textTransform: 'capitalize' },
+    pendingEmailHelp: { color: '#7c5a14', fontSize: 12, lineHeight: 17, marginTop: 7 },
+    pendingEmailActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
+    pendingEmailPrimaryAction: { flex: 1, paddingVertical: 10, borderRadius: 9, borderWidth: 1, borderColor: '#01538b', alignItems: 'center', backgroundColor: '#f0f7fb' },
+    pendingEmailPrimaryText: { color: '#01538b', fontSize: 12, fontWeight: '700' },
+    pendingEmailCancelAction: { flex: 1, paddingVertical: 10, borderRadius: 9, borderWidth: 1, borderColor: '#b42318', alignItems: 'center', backgroundColor: '#fff' },
+    pendingEmailCancelText: { color: '#b42318', fontSize: 12, fontWeight: '700' },
 
     switchRow: {
         flexDirection: 'row', justifyContent: 'space-between',

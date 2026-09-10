@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import styles from '../../styles/admin/AdminProfile.module.css';
 import { useAuth } from '../../hooks/useAuth';
 import successIcon from '../../assets/alert/success.svg';
@@ -21,8 +20,7 @@ const getEmailFormatError = (email = '') => {
     return trimmedEmail && !isValidEmail(trimmedEmail) ? 'Please enter a valid email address.' : '';
 };
 export default function MyProfile() {
-    const { user, logout } = useAuth();
-    const navigate = useNavigate();
+    const { user } = useAuth();
     const fileInputRef = useRef(null);
     const { addToast } = useToast(); // CRITICAL RULE: Toast implementation
 
@@ -50,6 +48,8 @@ export default function MyProfile() {
     const [showEmailSuccessModal, setShowEmailSuccessModal] = useState(false);
     const [emailSuccessMessage, setEmailSuccessMessage] = useState('');
     const [emailFieldErrors, setEmailFieldErrors] = useState({});
+    const [pendingEmail, setPendingEmail] = useState('');
+    const [pendingEmailDeliveryStatus, setPendingEmailDeliveryStatus] = useState('');
 
     // Main Form State - Unified for All Roles
     const [formData, setFormData] = useState({
@@ -217,6 +217,8 @@ export default function MyProfile() {
                     
                     setFormData(fetchedData);
                     setInitialData(fetchedData);
+                    setPendingEmail(data?.pendingEmail || '');
+                    setPendingEmailDeliveryStatus(data?.pendingEmailDeliveryStatus || '');
                 } else {
                     setFetchError("Failed to load profile data.");
                 }
@@ -537,6 +539,8 @@ export default function MyProfile() {
 
             if (response.ok) {
                 setEmailSuccessMessage(data.message || 'Request link has been sent to your new email address.');
+                setPendingEmail(data.pendingEmail || emailFormData.newEmail.trim().toLowerCase());
+                setPendingEmailDeliveryStatus(data.deliveryStatus || 'accepted');
                 setShowEmailModal(false);
                 setEmailFormData({ newEmail: '', currentPassword: '' });
                 setIsEmailPasswordVerified(false);
@@ -563,12 +567,33 @@ export default function MyProfile() {
         }
     };
 
-    const handleEmailSuccessDone = async () => {
+    const handleEmailSuccessDone = () => {
         setShowEmailSuccessModal(false);
-        await logout('email_change_requested');
-        navigate('/login', {
-            state: { message: 'We sent a verification link to your new email. Please verify it to continue.' },
-        });
+    };
+
+    const handlePendingEmailAction = async (action) => {
+        setIsSubmittingEmail(true);
+        setEmailChangeError('');
+        try {
+            const response = await authFetch(action === 'resend' ? '/user/resend-email-change' : '/user/pending-email-change', {
+                method: action === 'resend' ? 'POST' : 'DELETE',
+                skipUnauthorizedRedirect: true,
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.message || `Unable to ${action} the email change request.`);
+            if (action === 'cancel') {
+                setPendingEmail('');
+                setPendingEmailDeliveryStatus('');
+            } else {
+                setPendingEmail(data.pendingEmail || pendingEmail);
+                setPendingEmailDeliveryStatus(data.deliveryStatus || 'accepted');
+            }
+            addToast(data.message, 'success');
+        } catch (error) {
+            addToast(error.message || `Unable to ${action} the email change request.`, 'error');
+        } finally {
+            setIsSubmittingEmail(false);
+        }
     };
 
     if (isLoading) {
@@ -704,10 +729,21 @@ export default function MyProfile() {
                                     type="button" 
                                     className={styles.changeEmailBtn} 
                                     onClick={() => setShowEmailModal(true)}
+                                    disabled={Boolean(pendingEmail) || isSubmittingEmail}
                                 >
                                     Change Email
                                 </button>
                             </div>
+                            {pendingEmail && (
+                                <div style={{ marginTop: '10px', padding: '12px 14px', border: '1px solid #f2c46d', borderRadius: '10px', background: '#fff8e8', color: '#7c4a03', fontSize: '13px' }}>
+                                    <div><strong>Pending:</strong> {pendingEmail}{pendingEmailDeliveryStatus ? ` (${pendingEmailDeliveryStatus})` : ''}</div>
+                                    <div style={{ marginTop: '8px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                        <button type="button" className={styles.changeEmailBtn} onClick={() => handlePendingEmailAction('resend')} disabled={isSubmittingEmail}>Resend Link</button>
+                                        <button type="button" className={styles.cancelBtn} onClick={() => handlePendingEmailAction('cancel')} disabled={isSubmittingEmail}>Cancel Request</button>
+                                    </div>
+                                    <div style={{ marginTop: '8px' }}>Your current email remains active until the new address is verified.</div>
+                                </div>
+                            )}
                         </div>
                         <div className={styles.formGroup}>
                             <label>CONTACT NUMBER <span style={{color: isEditing ? 'red' : 'transparent'}}>*</span></label>
@@ -1008,7 +1044,7 @@ export default function MyProfile() {
                                 textAlign: 'left',
                             }}
                         >
-                            You will be logged out after the request link is sent. Please verify your new email before logging in again.
+                            Your current email and account access will remain active until the new address is verified.
                         </p>
                         
                         <form onSubmit={handleRequestEmailChange} style={{ width: '100%', textAlign: 'left' }} noValidate>
@@ -1086,12 +1122,12 @@ export default function MyProfile() {
                 <div className={styles.modalOverlay}>
                     <div className={styles.modalCard}>
                         <img src={successIcon} alt="Success" className={styles.modalIcon} />
-                        <h3 className={styles.modalTitle}>Request Link Sent</h3>
+                        <h3 className={styles.modalTitle}>Verification Link Sent</h3>
                         <p className={styles.modalMessage}>
                             {emailSuccessMessage || 'Request link has been sent to your new email address.'}
                         </p>
                         <p className={styles.modalMessage}>
-                            You will now be logged out. Please verify your new email before logging in again.
+                            Continue signing in with your current email until you verify the new address. You can resend or cancel this request from your profile.
                         </p>
                         <button className={styles.modalButton} onClick={handleEmailSuccessDone}>
                             DONE

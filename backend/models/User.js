@@ -468,6 +468,19 @@ const userSchema = new mongoose.Schema({
     activationToken: { type: String },
     activationTokenExpires: { type: Date, default: null },
     lastEmailChangeRequestedAt: { type: Date, default: null },
+    // Email changes remain pending until the link sent to the new address is
+    // opened. Keeping these fields separate from account activation prevents a
+    // failed email delivery from disabling an otherwise healthy account.
+    pendingEmail: { type: String, lowercase: true, trim: true, default: undefined },
+    pendingEmailChangeToken: { type: String, default: undefined },
+    pendingEmailChangeTokenExpires: { type: Date, default: null },
+    pendingEmailChangeRequestedAt: { type: Date, default: null },
+    pendingEmailDeliveryStatus: {
+        type: String,
+        enum: ['accepted', 'delivered', 'delayed', 'failed', 'bounced'],
+        default: undefined,
+    },
+    pendingEmailMessageId: { type: String, default: undefined },
     isPasswordChanged: { type: Boolean, default: false },
     temporaryPasswordExpires: { type: Date },
     resetPasswordOtp: { type: String },
@@ -568,5 +581,6 @@ userSchema.set('toJSON', {
 userSchema.index({ role: 1, isArchived: 1, createdAt: -1 });
 userSchema.index({ role: 1, assignedBranch: 1, isArchived: 1, createdAt: -1 });
 userSchema.index({ role: 1, assignedBranches: 1, isArchived: 1, createdAt: -1 });
+userSchema.index({ pendingEmail: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.models.User || mongoose.model('User', userSchema);
