@@ -170,15 +170,30 @@ export default function WebsiteAppointment() {
     useEffect(() => {
         if (!TURNSTILE_SITE_KEY) return;
 
+        const cleanupWidget = () => {
+            const widgetId = turnstileWidgetIdRef.current;
+            if (widgetId !== null && window.turnstile) {
+                try {
+                    window.turnstile.remove(widgetId);
+                } catch {
+                    // The widget may already have been removed with its container.
+                }
+            }
+            turnstileWidgetIdRef.current = null;
+        };
+
         if (window.turnstile) {
             renderTurnstile();
-            return;
+            return cleanupWidget;
         }
 
         const existingScript = document.querySelector('script[data-turnstile-script="true"]');
         if (existingScript) {
             existingScript.addEventListener('load', renderTurnstile);
-            return () => existingScript.removeEventListener('load', renderTurnstile);
+            return () => {
+                existingScript.removeEventListener('load', renderTurnstile);
+                cleanupWidget();
+            };
         }
 
         const script = document.createElement('script');
@@ -189,7 +204,10 @@ export default function WebsiteAppointment() {
         script.addEventListener('load', renderTurnstile);
         document.body.appendChild(script);
 
-        return () => script.removeEventListener('load', renderTurnstile);
+        return () => {
+            script.removeEventListener('load', renderTurnstile);
+            cleanupWidget();
+        };
     }, [renderTurnstile]);
 
     useEffect(() => {
