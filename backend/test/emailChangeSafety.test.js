@@ -71,6 +71,27 @@ test('authenticated resend and cancel routes and signed delivery webhook are pre
     assert.match(serverSource, /'email\.delivered': 'delivered'/);
 });
 
+test('authenticated users can manage email changes for their own account regardless of role', () => {
+    const requestSource = routeSource(
+        "app.post('/api/user/request-email-change'",
+        "app.post('/api/verify-current-password'"
+    );
+    const resendSource = routeSource(
+        "app.post('/api/user/resend-email-change'",
+        "app.delete('/api/user/pending-email-change'"
+    );
+    const cancelSource = routeSource(
+        "app.delete('/api/user/pending-email-change'",
+        "app.patch('/api/patients/:id/treatment-logs/:logId/notes'"
+    );
+
+    for (const source of [requestSource, resendSource, cancelSource]) {
+        assert.match(source, /User\.findById\(req\.user\.id\)/);
+        assert.doesNotMatch(source, /req\.user\.role !== ['"]administrator['"]/);
+        assert.doesNotMatch(source, /Only administrators can/);
+    }
+});
+
 test('all web roles share the profile email-change controls', () => {
     const appSource = fs.readFileSync(path.resolve(backendRoot, '..', 'ngitify-web', 'src', 'App.js'), 'utf8');
     const sharedProfileSource = fs.readFileSync(path.resolve(backendRoot, '..', 'ngitify-web', 'src', 'pages', 'admin', 'AdminProfile.js'), 'utf8');

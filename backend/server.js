@@ -7540,9 +7540,6 @@ app.put('/api/user/update-profile/:id', verifyToken, async (req, res) => {
 // -------------------------------------------------------
 app.post('/api/user/request-email-change', verifyToken, otpLimiter, async (req, res) => {
     try {
-        if (req.user.role !== 'administrator') {
-            return res.status(403).json({ message: 'Only administrators can change their email address.' });
-        }
         const { newEmail, currentPassword } = req.body;
 
         if (!newEmail || !currentPassword) {
@@ -11181,9 +11178,6 @@ app.post('/api/patients/:id/treatment-logs', verifyToken, async (req, res) => {
 
 app.post('/api/user/resend-email-change', verifyToken, otpLimiter, async (req, res) => {
     try {
-        if (req.user.role !== 'administrator') {
-            return res.status(403).json({ message: 'Only administrators can manage email change requests.' });
-        }
         const user = await User.findById(req.user.id);
         if (!user || !user.pendingEmail) {
             return res.status(404).json({ message: 'No pending email change request was found.' });
@@ -11240,9 +11234,6 @@ app.post('/api/user/resend-email-change', verifyToken, otpLimiter, async (req, r
 
 app.delete('/api/user/pending-email-change', verifyToken, async (req, res) => {
     try {
-        if (req.user.role !== 'administrator') {
-            return res.status(403).json({ message: 'Only administrators can manage email change requests.' });
-        }
         const user = await User.findById(req.user.id);
         if (!user || !user.pendingEmail) {
             return res.status(404).json({ message: 'No pending email change request was found.' });
