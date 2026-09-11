@@ -113,9 +113,9 @@ export default function PatientMonthCalendar({
                 </div>
             </div>
 
-            <div className={styles.calendarGrid} role="grid" aria-label={monthLabel}>
+            <div className={styles.calendarGrid} aria-label={monthLabel}>
                 {DAY_NAMES.map((dayName, index) => (
-                    <div key={dayName} className={styles.dayName} role="columnheader" aria-label={FULL_DAY_NAMES[index]}>
+                    <div key={dayName} className={styles.dayName} aria-label={FULL_DAY_NAMES[index]}>
                         {dayName}
                     </div>
                 ))}
@@ -152,8 +152,7 @@ export default function PatientMonthCalendar({
                             className={classNames}
                             onClick={() => onSelectDate(cell.key, cell)}
                             disabled={cell.disabled}
-                            role="gridcell"
-                            aria-selected={Boolean(cell.selected)}
+                            aria-pressed={Boolean(cell.selected)}
                             aria-label={`${readableDate}${stateLabels.length ? `, ${stateLabels.join(', ')}` : ''}`}
                         >
                             <span className={styles.dateNumber}>{cell.label}</span>

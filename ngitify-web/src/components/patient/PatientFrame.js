@@ -15,7 +15,7 @@ export function PatientPageFrame({
     }
 
     return (
-        <main className={`${adminStyles['main-content']} ${styles.page}`}>
+        <div className={`${adminStyles['main-content']} ${styles.page}`}>
             {!hideHeader ? (
                 <header className={`${adminStyles.header} ${styles.header}`}>
                     <div className={`${adminStyles['header-left']} ${styles.headerCopy}`}>
@@ -39,7 +39,7 @@ export function PatientPageFrame({
             ) : null}
 
             {children}
-        </main>
+        </div>
     );
 }
 

@@ -69,7 +69,7 @@ export default function DentistOdontogramPage() {
     );
 
     return (
-        <main className={styles.odontogramPageWrapper}>
+        <div className={styles.odontogramPageWrapper}>
             <header className={styles.odontogramPageHeader}>
                 <div>
                     <h1 className={styles.odontogramPageTitle}>
@@ -145,6 +145,6 @@ export default function DentistOdontogramPage() {
                     <Odontogram patientId={selectedPatient.id} />
                 </div>
             )}
-        </main>
+        </div>
     );
 }

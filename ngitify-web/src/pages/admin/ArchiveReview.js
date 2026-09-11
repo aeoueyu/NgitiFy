@@ -299,7 +299,7 @@ export default function ArchiveReview() {
                         />
                     </div>
 
-                    <select className={styles.selectField} value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
+                    <select aria-label="Role filter" className={styles.selectField} value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
                         <option value="all">All Roles</option>
                         <option value="patient">Patients</option>
                         <option value="staff">All Staff</option>
@@ -309,7 +309,7 @@ export default function ArchiveReview() {
                         <option value="owner">Owners</option>
                     </select>
 
-                    <select className={styles.selectField} value={reviewFilter} onChange={(event) => setReviewFilter(event.target.value)}>
+                    <select aria-label="Review status filter" className={styles.selectField} value={reviewFilter} onChange={(event) => setReviewFilter(event.target.value)}>
                         <option value="all">All Review States</option>
                         <option value="ready">Ready To Delete</option>
                         <option value="retention">Waiting Retention</option>

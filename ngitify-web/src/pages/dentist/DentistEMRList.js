@@ -74,7 +74,7 @@ export default function DentistEMRList() {
     const openEMR = (patientId) => navigate(`/dentist/patients/${patientId}/emr`);
 
     return (
-        <main className={styles.pageWrapper}>
+        <div className={styles.pageWrapper}>
 
             {/* PAGE HEADER */}
             <header className={styles.pageHeader}>
@@ -178,6 +178,6 @@ export default function DentistEMRList() {
                     })}
                 </div>
             )}
-        </main>
+        </div>
     );
 }

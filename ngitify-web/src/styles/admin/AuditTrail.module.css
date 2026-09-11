@@ -18,7 +18,7 @@
 }
 
 .subtitle {
-    color: #888;
+    color: #5f6670;
     margin: 0;
     font-size: 13px;
     font-weight: 500;
@@ -52,7 +52,7 @@
     left: 15px;
     top: 50%;
     transform: translateY(-50%);
-    color: #94a3b8;
+    color: #64748b;
     font-size: 14px;
 }
 
@@ -120,7 +120,7 @@
 }
 
 .dateSeparator {
-    color: #94a3b8;
+    color: #64748b;
     font-weight: 500;
 }
 
@@ -250,7 +250,7 @@
 }
 
 .pageBtn:disabled {
-    color: #94a3b8;
+    color: #64748b;
     background-color: #f8fafc;
     cursor: not-allowed;
     border-color: #e2e8f0;

@@ -14,7 +14,7 @@ export function AdminDashboardPage({
     children,
 }) {
     return (
-        <main className={styles['main-content']}>
+        <div className={styles['main-content']}>
             <header className={styles.header}>
                 <div className={styles['header-left']}>
                     <h1 className={styles.title}>{title}</h1>
@@ -50,7 +50,7 @@ export function AdminDashboardPage({
             </header>
             <PasswordChangeWarning />
             {children}
-        </main>
+        </div>
     );
 }
 

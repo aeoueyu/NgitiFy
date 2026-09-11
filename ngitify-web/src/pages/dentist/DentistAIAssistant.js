@@ -11,7 +11,7 @@ const SUGGESTED_PROMPTS = [
 
 export default function DentistAIAssistant() {
     return (
-        <main className={styles.page}>
+        <div className={styles.page}>
             <section className={styles.heroCard}>
                 <div className={styles.heroIconWrap}>
                     <FaRobot className={styles.heroIcon} />
@@ -95,6 +95,6 @@ export default function DentistAIAssistant() {
                     </button>
                 </div>
             </section>
-        </main>
+        </div>
     );
 }

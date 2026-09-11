@@ -11,13 +11,13 @@
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-shrink: 0; }
 .header-left { display: flex; flex-direction: column; }
 .title { color: #01538b; font-size: 24px; font-weight: 800; margin: 0 0 5px 0; }
-.subtitle { color: #888; margin: 0; font-size: 13px; font-weight: 500; }
+.subtitle { color: #5f6670; margin: 0; font-size: 13px; font-weight: 500; }
 .divider { margin: 0 8px; color: #2dccf6; }
 .time-accent { color: #01538b; }
 .header-right { display: flex; align-items: center; gap: 15px; position: relative; }
 .user-info { display: flex; flex-direction: column; text-align: right; }
 .user-name { color: #01538b; font-weight: 700; font-size: 14px; }
-.user-role { color: #2dccf6; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.user-role { color: #08729f; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
 
 /* Functional Profile Dropdown */
 .profile-wrapper { position: relative; cursor: pointer; }
@@ -99,7 +99,7 @@
 .statButton { width: 100%; text-align: left; font-family: 'Lexend Deca', sans-serif; }
 .stat-card:hover { transform: translateY(-4px); box-shadow: 0 8px 25px rgba(1, 83, 139, 0.08); }
 .stat-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-.stat-title { color: #888; font-size: 13px; font-weight: 600; margin: 0; }
+.stat-title { color: #5f6670; font-size: 13px; font-weight: 600; margin: 0; }
 .stat-icon-wrapper { width: 38px; height: 38px; border-radius: 10px; display: flex; justify-content: center; align-items: center; }
 .bg-blue { background-color: rgba(1, 83, 139, 0.1); }
 .bg-cyan { background-color: rgba(45, 204, 246, 0.15); }
@@ -117,7 +117,7 @@
 
 .stat-desc { color: #2e7d32; font-size: 12px; font-weight: 600; margin: 0; text-align: left; }
 .stat-desc.danger { color: #d9534f; }
-.stat-desc.neutral { color: #888; }
+.stat-desc.neutral { color: #5f6670; }
 
 /* --- MAIN GRID (NATURAL SCROLL) --- */
 .main-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; flex: 1; }
@@ -129,8 +129,8 @@
 .widget-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-shrink: 0; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; justify-content: flex-start; }
 .widget-icon { margin-right: 12px; font-size: 16px; color: #01538b; }
 .widget-title { color: #01538b; font-size: 15px; font-weight: 700; margin: 0; display: flex; align-items: center; }
-.view-all { color: #2dccf6; font-size: 12px; font-weight: 600; cursor: pointer; margin-left: auto; }
-.empty-state { text-align: center; color: #94a3b8; padding: 20px; font-size: 13px; display: flex; flex-direction: column; justify-content: center; min-height: 150px; align-items: center;}
+.view-all { color: #08729f; font-size: 12px; font-weight: 600; cursor: pointer; margin-left: auto; }
+.empty-state { text-align: center; color: #64748b; padding: 20px; font-size: 13px; display: flex; flex-direction: column; justify-content: center; min-height: 150px; align-items: center;}
 
 .chart-container { height: 260px; width: 100%; margin-top: 10px; display: flex; justify-content: center; align-items: center; }
 
@@ -140,7 +140,7 @@
 .timeline-dot { width: 28px; height: 28px; border-radius: 50%; background-color: #f1f5f9; color: #64748b; display: flex; align-items: center; justify-content: center; font-size: 12px; margin-right: 12px; flex-shrink: 0; }
 .timeline-content { flex: 1; }
 .log-action { color: #334155; font-size: 12px; margin: 0 0 4px 0; line-height: 1.4; }
-.log-meta { display: flex; align-items: center; gap: 8px; font-size: 10px; color: #94a3b8; font-weight: 500; }
+.log-meta { display: flex; align-items: center; gap: 8px; font-size: 10px; color: #64748b; font-weight: 500; }
 .role-tag { background-color: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 4px; text-transform: capitalize; }
 
 .list-content { flex: 1; margin: 0; padding: 0; }
@@ -155,7 +155,7 @@
 .patient-avatar { width: 35px; height: 35px; background-color: rgba(45, 204, 246, 0.15); color: #01538b; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 700; font-size: 13px; }
 .patient-details p { margin: 0; }
 .patient-name { font-weight: 600; color: #333; font-size: 13px; }
-.treatment-type { font-size: 11px; color: #888; margin-top: 2px !important; }
+.treatment-type { font-size: 11px; color: #5f6670; margin-top: 2px !important; }
 .meta-line { margin: 4px 0 0; color: #64748b; font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
 .dentist-name { margin: 4px 0 0 0; color: #0284c7; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
 .action-block { display: flex; align-items: center; gap: 12px; justify-content: flex-end; flex-wrap: wrap; }
@@ -305,7 +305,7 @@
 }
 
 .compactMeta {
-    color: #94a3b8;
+    color: #64748b;
     font-size: 12px;
     font-weight: 600;
 }
@@ -398,7 +398,7 @@
 .cal-nav-btn:hover { background-color: rgba(1, 83, 139, 0.15); }
 
 .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 1fr; gap: 4px; text-align: center; }
-.day-name { font-size: 11px; color: #888; font-weight: 600; align-self: end; padding-bottom: 10px; }
+.day-name { font-size: 11px; color: #5f6670; font-weight: 600; align-self: end; padding-bottom: 10px; }
 
 .date-num { 
     font-size: 13px; color: #333; font-weight: 600; display: flex; flex-direction: column; 
@@ -463,7 +463,7 @@
 
 .holiday-empty {
     margin: 0;
-    color: #94a3b8;
+    color: #64748b;
     font-size: 13px;
 }
 

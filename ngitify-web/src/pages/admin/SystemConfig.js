@@ -584,6 +584,7 @@ const SystemConfig = () => {
             {helpText ? <p className={styles.helpText}>{helpText}</p> : null}
             {textarea ? (
                 <textarea
+                    aria-label={label}
                     className={styles.textarea}
                     rows={rows}
                     value={value || ''}
@@ -592,6 +593,7 @@ const SystemConfig = () => {
                 />
             ) : (
                 <input
+                    aria-label={label}
                     type="text"
                     className={styles.input}
                     value={value || ''}
@@ -630,6 +632,7 @@ const SystemConfig = () => {
                     <label className={styles.label}>{label}</label>
                     {helpText ? <p className={styles.helpText}>{helpText}</p> : null}
                     <input
+                        aria-label={label}
                         type="text"
                         className={styles.input}
                         value={value}
@@ -677,6 +680,7 @@ const SystemConfig = () => {
                 <div className={styles.formGroup}>
                     <label className={styles.label}>About Highlight Image {index + 1}</label>
                     <input
+                        aria-label={`About highlight image ${index + 1}`}
                         type="text"
                         className={styles.input}
                         value={value}
@@ -1127,22 +1131,22 @@ const SystemConfig = () => {
 
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Clinic Name <span className={styles.requiredMark}>*</span></label>
-                                <input type="text" name="clinicName" value={config.clinicName} onChange={handleChange} className={`${styles.input} ${configErrors.clinicName ? styles.inputError : ''}`} aria-invalid={Boolean(configErrors.clinicName)} required />
+                                <input aria-label="Clinic name" type="text" name="clinicName" value={config.clinicName} onChange={handleChange} className={`${styles.input} ${configErrors.clinicName ? styles.inputError : ''}`} aria-invalid={Boolean(configErrors.clinicName)} required />
                                 {configErrors.clinicName && <span className={styles.errorText}>{configErrors.clinicName}</span>}
                             </div>
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Contact Number <span className={styles.requiredMark}>*</span></label>
-                                <input type="text" name="clinicContact" value={config.clinicContact} onChange={handleChange} className={`${styles.input} ${configErrors.clinicContact ? styles.inputError : ''}`} aria-invalid={Boolean(configErrors.clinicContact)} required />
+                                <input aria-label="Contact number" type="text" name="clinicContact" value={config.clinicContact} onChange={handleChange} className={`${styles.input} ${configErrors.clinicContact ? styles.inputError : ''}`} aria-invalid={Boolean(configErrors.clinicContact)} required />
                                 {configErrors.clinicContact && <span className={styles.errorText}>{configErrors.clinicContact}</span>}
                             </div>
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Email Address <span className={styles.requiredMark}>*</span></label>
-                                <input type="email" name="clinicEmail" value={config.clinicEmail} onChange={handleChange} className={`${styles.input} ${configErrors.clinicEmail ? styles.inputError : ''}`} aria-invalid={Boolean(configErrors.clinicEmail)} required />
+                                <input aria-label="Email address" type="email" name="clinicEmail" value={config.clinicEmail} onChange={handleChange} className={`${styles.input} ${configErrors.clinicEmail ? styles.inputError : ''}`} aria-invalid={Boolean(configErrors.clinicEmail)} required />
                                 {configErrors.clinicEmail && <span className={styles.errorText}>{configErrors.clinicEmail}</span>}
                             </div>
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Address <span className={styles.requiredMark}>*</span></label>
-                                <textarea name="clinicAddress" value={config.clinicAddress} onChange={handleChange} className={`${styles.textarea} ${configErrors.clinicAddress ? styles.inputError : ''}`} rows={3} aria-invalid={Boolean(configErrors.clinicAddress)} required />
+                                <textarea aria-label="Address" name="clinicAddress" value={config.clinicAddress} onChange={handleChange} className={`${styles.textarea} ${configErrors.clinicAddress ? styles.inputError : ''}`} rows={3} aria-invalid={Boolean(configErrors.clinicAddress)} required />
                                 {configErrors.clinicAddress && <span className={styles.errorText}>{configErrors.clinicAddress}</span>}
                             </div>
                         </div>
@@ -1156,6 +1160,7 @@ const SystemConfig = () => {
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Max Appointments Per Day <span className={styles.requiredMark}>*</span></label>
                                 <input
+                                    aria-label="Maximum appointments per day"
                                     type="number"
                                     name="maxAppointmentsPerDay"
                                     value={config.maxAppointmentsPerDay}
@@ -1176,6 +1181,7 @@ const SystemConfig = () => {
                                     {DEFAULT_SLOTS.map((slot) => (
                                         <label key={slot} className={`${styles.slotChip} ${config.allowedTimeSlots.includes(slot) ? styles.slotChipActive : ''}`}>
                                             <input
+                                                aria-label={`${slot} appointment time slot`}
                                                 type="checkbox"
                                                 checked={config.allowedTimeSlots.includes(slot)}
                                                 onChange={() => handleSlotToggle(slot)}
@@ -1195,6 +1201,7 @@ const SystemConfig = () => {
                                     {(config.onlineBookingProcedures || []).map((procedure, index) => (
                                         <div key={`online-procedure-${index}`} className={styles.procedureRow}>
                                             <input
+                                                aria-label={`Online booking procedure ${index + 1}`}
                                                 type="text"
                                                 value={procedure}
                                                 onChange={(e) => handleListInputChange('onlineBookingProcedures', index, e.target.value)}
@@ -1225,6 +1232,7 @@ const SystemConfig = () => {
                                     {(config.clinicProcedures || []).map((procedure, index) => (
                                         <div key={`procedure-${index}`} className={styles.procedureRow}>
                                             <input
+                                                aria-label={`Clinic procedure ${index + 1}`}
                                                 type="text"
                                                 value={procedure}
                                                 onChange={(e) => handleListInputChange('clinicProcedures', index, e.target.value)}
@@ -1259,6 +1267,7 @@ const SystemConfig = () => {
                                 <label className={styles.label}>Account Activation Email <span className={styles.requiredMark}>*</span></label>
                                 <p className={styles.helpText}>Sent when a new staff account is created.</p>
                                 <textarea
+                                    aria-label="Account activation email"
                                     name="activation"
                                     value={config.emailTemplates?.activation || ''}
                                     onChange={handleTemplateChange}
@@ -1274,6 +1283,7 @@ const SystemConfig = () => {
                                 <label className={styles.label}>Appointment Reminder Email <span className={styles.requiredMark}>*</span></label>
                                 <p className={styles.helpText}>Sent to patients before their scheduled appointment.</p>
                                 <textarea
+                                    aria-label="Appointment reminder email"
                                     name="appointmentReminder"
                                     value={config.emailTemplates?.appointmentReminder || ''}
                                     onChange={handleTemplateChange}
@@ -1315,6 +1325,7 @@ const SystemConfig = () => {
                                 <div className={styles.formGroup} style={{ marginTop: '20px' }}>
                                     <label className={styles.label}>Session Timeout Duration (minutes) <span className={styles.requiredMark}>*</span></label>
                                     <input
+                                        aria-label="Session timeout duration in minutes"
                                         type="number"
                                         name="sessionTimeoutMinutes"
                                         value={config.sessionTimeoutMinutes}

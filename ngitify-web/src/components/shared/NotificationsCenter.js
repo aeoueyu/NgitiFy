@@ -298,20 +298,20 @@ export default function NotificationsCenter() {
                         </div>
 
                         <div className={scheduleStyles.inlineFilterRow}>
-                            <select className={scheduleStyles.filterSelect} value={selectedRange} onChange={(event) => setSelectedRange(event.target.value)}>
+                            <select aria-label="Date range" className={scheduleStyles.filterSelect} value={selectedRange} onChange={(event) => setSelectedRange(event.target.value)}>
                                 {RANGE_OPTIONS.map((option) => (
                                     <option key={option.value} value={option.value}>{option.label}</option>
                                 ))}
                             </select>
 
-                            <select className={scheduleStyles.filterSelect} value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                            <select aria-label="Notification type" className={scheduleStyles.filterSelect} value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
                                 <option value="all">All Types</option>
                                 {typeOptions.filter((value) => value !== 'all').map((value) => (
                                     <option key={value} value={value}>{TYPE_META[value]?.label || value}</option>
                                 ))}
                             </select>
 
-                            <select className={scheduleStyles.filterSelect} value={readFilter} onChange={(event) => setReadFilter(event.target.value)}>
+                            <select aria-label="Read status" className={scheduleStyles.filterSelect} value={readFilter} onChange={(event) => setReadFilter(event.target.value)}>
                                 <option value="all">All Read Status</option>
                                 <option value="unread">Unread</option>
                                 <option value="read">Read</option>

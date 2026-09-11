@@ -60,9 +60,9 @@ export default function DashboardLayout() {
     return (
         <div className={`${styles.dashboardContainer} ${user?.role === 'patient' ? styles.patientLayout : ''}`}>
             <Sidebar />
-            <div className={`${styles.mainContent} ${user?.role === 'patient' ? styles.patientMainContent : ''}`}>
+            <main id="main-content" className={`${styles.mainContent} ${user?.role === 'patient' ? styles.patientMainContent : ''}`}>
                 <Outlet />
-            </div>
+            </main>
 
             {user?.role === 'patient' ? <PatientAIChat /> : null}
 

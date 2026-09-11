@@ -268,7 +268,7 @@ export default function SharedActivityLogs() {
 
                     <div className={scheduleStyles.filterSelectWrap}>
                         <FaFilter className={scheduleStyles.filterIcon} />
-                        <select className={scheduleStyles.filterSelect} value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
+                        <select aria-label="Activity category" className={scheduleStyles.filterSelect} value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
                             {categories.map((item) => (
                                 <option key={item} value={item}>
                                     {item === 'All' ? 'All Categories' : item}

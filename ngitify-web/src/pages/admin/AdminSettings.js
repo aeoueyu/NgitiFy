@@ -223,7 +223,7 @@ export default function Settings() {
     // ==========================================
     const renderSecuritySection = () => (
         <div>
-            <h3 className={styles.mainSectionTitle}>Account Security</h3>
+            <h2 className={styles.mainSectionTitle}>Account Security</h2>
 
             {apiError && <div className={styles.apiErrorMessage}>{apiError}</div>}
 
@@ -322,7 +322,7 @@ export default function Settings() {
 
     const renderNotificationsSection = () => (
         <form onSubmit={handleSaveNotifications}>
-            <h3 className={styles.mainSectionTitle}>Notification Settings</h3>
+            <h2 className={styles.mainSectionTitle}>Notification Settings</h2>
             <p className={styles.sectionDescription}>Choose what alerts you want to receive directly to your email.</p>
             
             {notifSuccess && <div className={styles.successMessage}>{notifSuccess}</div>}
@@ -407,7 +407,7 @@ export default function Settings() {
             {showSuccessModal && (
                 <div className={styles.modalOverlay}>
                     <div className={styles.modalCard}>
-                        <h3 className={styles.modalTitle} style={{ color: '#15803d' }}>Success!</h3>
+                        <h2 className={styles.modalTitle} style={{ color: '#15803d' }}>Success!</h2>
                         <p className={styles.modalMessage}>
                             Your password has been successfully changed.<br/><br/>
                             For your security, you will now be logged out. Please log back in with your new password.

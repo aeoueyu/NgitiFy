@@ -101,6 +101,11 @@
     box-shadow: 0 0 0 4px rgba(1, 83, 139, 0.15);
 }
 
+.page-title h1 {
+    margin: 0;
+    font: inherit;
+}
+
 .input-field.input-error {
     border-color: #d9534f;
     box-shadow: 0 0 0 4px rgba(217, 83, 79, 0.12);
@@ -141,17 +146,21 @@
 .back-container {
     margin-top: 25px;
     font-size: 13px;
-    color: #888;
+    color: #5f6670;
 }
 
-.back-container span {
+.back-container button {
     color: #01538b;
     font-weight: 700;
     cursor: pointer;
     text-decoration: underline;
     transition: color 0.3s;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
 }
 
-.back-container span:hover {
-    color: #2dccf6; /* Pink hover effect */
+.back-container button:hover {
+    color: #01538b;
 }

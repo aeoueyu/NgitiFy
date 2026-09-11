@@ -301,6 +301,7 @@ export default function ManageSecretaries() {
 
                     {!isBranchManager ? (
                         <select
+                            aria-label="Branch filter"
                             className={styles.filterSelect}
                             value={branchFilter}
                             onChange={(e) => setBranchFilter(e.target.value)}

@@ -563,7 +563,7 @@ function MaterialUsagePage() {
     const topMaterial = Object.entries(materialFreq).sort((a, b) => b[1] - a[1])[0];
 
     return (
-        <main className={styles.pageWrapper}>
+        <div className={styles.pageWrapper}>
             <header className={styles.pageHeader}>
                 <div>
                     <h1 className={styles.pageTitle}>Material Usage Log</h1>
@@ -701,7 +701,7 @@ function MaterialUsagePage() {
                     inventoryList={inventoryList}
                 />
             )}
-        </main>
+        </div>
     );
 }
 

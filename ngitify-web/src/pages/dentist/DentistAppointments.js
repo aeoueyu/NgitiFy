@@ -379,7 +379,7 @@ export default function DentistAppointments() {
     // ─── RENDER ───────────────────────────────────────────────────────────────
     return (
         <>
-            <main className={styles['main-content']}>
+            <div className={styles['main-content']}>
                 {/* HEADER */}
                 <header className={styles['header']}>
                     <div className={styles['header-left']}>
@@ -558,7 +558,7 @@ export default function DentistAppointments() {
                         </div>
                     </div>
                 </div>
-            </main>
+            </div>
 
             {/* ─── BOOK APPOINTMENT MODAL ───────────────────────────────────── */}
             {isBookingModalOpen && (

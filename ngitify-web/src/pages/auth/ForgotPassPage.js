@@ -68,20 +68,21 @@ export default function ForgotPassPage() {
     };
 
     return (
-        <div className={styles['main-container']}>
+        <main className={styles['main-container']}>
             {/* Wrapped in a form to allow native "Enter" key submission */}
             <form className={styles['container']} onSubmit={handleSendCode} noValidate>
                 <img src={logo} alt='Logo' className={styles.logo}/>
                 
                 <div className={styles['page-title']}>
-                    <p>Forgot Password</p>
+                    <h1>Forgot Password</h1>
                 </div>
                 <div className={styles['page-header']}>
                     <p>Enter your email address and we'll send you a code to reset your password.</p>
                 </div>
 
-                <div className={styles['label-container']}><p className={styles.label}>EMAIL ADDRESS</p></div>
+                <div className={styles['label-container']}><label className={styles.label} htmlFor="forgot-password-email">EMAIL ADDRESS</label></div>
                 <input 
+                    id="forgot-password-email"
                     type='email' 
                     className={`${styles['input-field']} ${errorMessage ? styles['input-error'] : ''}`}
                     value={email} 
@@ -90,6 +91,7 @@ export default function ForgotPassPage() {
                         if (errorMessage) setErrorMessage('');
                     }} 
                     disabled={isLoading}
+                    autoComplete="email"
                     aria-invalid={Boolean(errorMessage)}
                     aria-describedby="forgot-password-email-error"
                 />
@@ -107,11 +109,11 @@ export default function ForgotPassPage() {
                 </button>
 
                 <div className={styles['back-container']}>
-                    <span onClick={() => navigate('/login')} style={{ cursor: 'pointer', textDecoration: 'underline' }}>
+                    <button type="button" onClick={() => navigate('/login')} style={{ cursor: 'pointer', textDecoration: 'underline' }}>
                         Back to Login
-                    </span>
+                    </button>
                 </div>
             </form>
-        </div>
+        </main>
     );
 }

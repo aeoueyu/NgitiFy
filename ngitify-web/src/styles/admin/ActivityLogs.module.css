@@ -29,7 +29,7 @@
 }
 
 .pageSubtitle {
-    color: #888;
+    color: #5f6670;
     font-size: 13px;
     font-weight: 500;
     margin: 0;
@@ -63,7 +63,7 @@
     left: 14px;
     top: 50%;
     transform: translateY(-50%);
-    color: #94a3b8;
+    color: #64748b;
     font-size: 13px;
 }
 
@@ -122,7 +122,7 @@
 }
 
 .dateSep {
-    color: #94a3b8;
+    color: #64748b;
     font-size: 14px;
 }
 
@@ -153,7 +153,7 @@
 }
 
 .filterTabIcon {
-    color: #94a3b8;
+    color: #64748b;
     font-size: 13px;
 }
 
@@ -229,7 +229,7 @@
 .dateDivider span {
     font-size: 12px;
     font-weight: 700;
-    color: #94a3b8;
+    color: #64748b;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     background: #f4f7fa;
@@ -348,7 +348,7 @@
 
 .timelineTime {
     font-size: 12px;
-    color: #94a3b8;
+    color: #64748b;
     white-space: nowrap;
     margin-left: auto;
 }

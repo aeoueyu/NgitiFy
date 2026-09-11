@@ -14,7 +14,7 @@
 }
 
 .title { font-size: 26px; font-weight: 800; color: #01538b; font-family: 'Lexend Deca', sans-serif; margin: 0 0 4px; }
-.subtitle { font-size: 13px; color: #888; font-family: 'Lexend Deca', sans-serif; margin: 0; }
+.subtitle { font-size: 13px; color: #5f6670; font-family: 'Lexend Deca', sans-serif; margin: 0; }
 
 .backBtn {
     background: none;
@@ -107,7 +107,7 @@
     padding: 16px 20px;
     background: #fff;
 }
-.noteDate { font-size: 12px; color: #94a3b8; margin-bottom: 6px; }
+.noteDate { font-size: 12px; color: #64748b; margin-bottom: 6px; }
 .noteProcedure { font-size: 15px; color: #1e293b; margin-bottom: 4px; }
 .noteDentist { font-size: 13px; color: #01538b; margin-bottom: 2px; }
 .noteBranch { font-size: 12px; color: #64748b; }
@@ -129,7 +129,7 @@
     grid-column: span 8;
     text-align: center;
     font-size: 12px;
-    color: #94a3b8;
+    color: #64748b;
     padding-bottom: 4px;
 }
 .quadrantDivider { grid-column: 1 / -1; height: 1px; background: #e2e8f0; margin: 8px 0; }
@@ -144,7 +144,7 @@
 }
 .toothBox:hover { background: #e8f4fd; border-color: #01538b; }
 .toothNum { font-size: 11px; color: #475569; font-weight: 600; }
-.odontogramNote { font-size: 13px; color: #94a3b8; text-align: center; margin: 0; }
+.odontogramNote { font-size: 13px; color: #64748b; text-align: center; margin: 0; }
 
 /* Patient History */
 .historyGrid {
@@ -194,7 +194,7 @@
 .radiographImage { width: 100%; height: 100%; object-fit: cover; display: block; }
 .radiographMeta { padding: 12px; }
 .radiographNote { font-size: 13px; color: #475569; margin: 0 0 4px 0; }
-.radiographDate { font-size: 11px; color: #94a3b8; margin: 0 0 10px 0; }
+.radiographDate { font-size: 11px; color: #64748b; margin: 0 0 10px 0; }
 .deleteRadiographBtn {
     background: #fee2e2;
     color: #dc2626;
@@ -210,7 +210,7 @@
 /* Banners */
 .errorBanner { background: #fee2e2; color: #dc2626; padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
 .successBanner { background: #dcfce7; color: #166534; padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
-.emptyText { color: #94a3b8; font-size: 14px; }
+.emptyText { color: #64748b; font-size: 14px; }
 
 /* Loading */
 .loadingContainer { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; gap: 16px; color: #64748b; }

@@ -2962,9 +2962,9 @@ export default function PatientEMR({
             );
         }
         return (
-            <main className={styles['main-content']}>
+            <div className={styles['main-content']}>
                 {loadingContent}
-            </main>
+            </div>
         );
     }
 
@@ -2982,7 +2982,7 @@ export default function PatientEMR({
                 </div>
             );
         }
-        return <main className={styles['main-content']}>{notFoundContent}</main>;
+        return <div className={styles['main-content']}>{notFoundContent}</div>;
     }
 
     const patientPhone = patient?.contactNumber || 'N/A';
@@ -3083,7 +3083,7 @@ export default function PatientEMR({
 
     return (
         <>
-            <main className={styles['main-content']}>{innerContent}</main>
+            <div className={styles['main-content']}>{innerContent}</div>
             {renderUploadModal()}
             {renderDeleteRadiographModal()}
             {renderPrintPreview()}

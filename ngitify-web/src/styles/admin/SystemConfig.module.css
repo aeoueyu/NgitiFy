@@ -127,7 +127,7 @@
 
 .pageHeader { margin-bottom: 28px; }
 .pageTitle { font-size: 26px; font-weight: 800; color: #01538b; font-family: 'Lexend Deca', sans-serif; margin: 0 0 4px; }
-.pageSubtitle { font-size: 13px; color: #888; font-family: 'Lexend Deca', sans-serif; margin: 0; }
+.pageSubtitle { font-size: 13px; color: #5f6670; font-family: 'Lexend Deca', sans-serif; margin: 0; }
 
 /* Layout */
 .layout { display: flex; gap: 24px; align-items: flex-start; }
@@ -441,7 +441,7 @@
 .label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
 .requiredMark { color: #dc2626; font-weight: 800; }
 .requiredGroupError { border: 1px solid #dc2626; border-radius: 10px; padding: 10px; }
-.helpText { font-size: 12px; color: #94a3b8; margin: -2px 0 10px 0; }
+.helpText { font-size: 12px; color: #64748b; margin: -2px 0 10px 0; }
 .input {
     width: 100%;
     padding: 9px 12px;
@@ -567,7 +567,7 @@
     transition: all 0.2s;
 }
 .toggleOn { background: #01538b; color: #fff; }
-.toggleOff { background: #e2e8f0; color: #94a3b8; }
+.toggleOff { background: #e2e8f0; color: #475569; }
 
 /* Save button */
 .saveRow { display: flex; justify-content: flex-end; margin-top: 8px; }

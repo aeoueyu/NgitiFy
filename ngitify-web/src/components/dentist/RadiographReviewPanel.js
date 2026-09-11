@@ -340,7 +340,7 @@ export default function RadiographReviewPanel({ patientId, radiograph, radiograp
             </header>
 
             <div className={styles.workspace}>
-                <main className={styles.viewerColumn}>
+                <div className={styles.viewerColumn}>
                     <div className={styles.toolbar}>
                         <button type="button" onClick={() => setZoom((value) => Math.min(3, value + 0.25))} aria-label="Zoom in"><FaPlus /></button>
                         <button type="button" onClick={() => setZoom((value) => Math.max(0.5, value - 0.25))} aria-label="Zoom out"><FaMinus /></button>
@@ -376,7 +376,7 @@ export default function RadiographReviewPanel({ patientId, radiograph, radiograp
                         </div></div>
                     </section> : null}
                     <div className={styles.workflow} aria-label="Radiograph review workflow"><span>Radiograph Image</span><b>↓</b><span>Quality Review</span><b>↓</b><span>Dentist Finding</span><b>↓</b><span>Clinical Record</span><b>↓</b><span>Patient Explanation</span></div>
-                </main>
+                </div>
 
                 <aside className={styles.panel}>
                     <nav>{['quality', 'findings', 'history'].map((tab) => <button key={tab} type="button" className={activeTab === tab ? styles.activeTab : ''} onClick={() => setActiveTab(tab)}>{tab === 'history' ? 'Summary' : tab[0].toUpperCase() + tab.slice(1)}</button>)}</nav>

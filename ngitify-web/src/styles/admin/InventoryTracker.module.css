@@ -25,7 +25,7 @@
 }
 
 .subtitle {
-    color: #888;
+    color: #5f6670;
     margin: 0;
     font-size: 13px;
     font-weight: 500;
@@ -64,7 +64,7 @@
 }
 
 .statTitle {
-    color: #888;
+    color: #5f6670;
     font-size: 13px;
     font-weight: 600;
     margin: 0;
@@ -81,9 +81,9 @@
     align-items: center;
 }
 
-.bgBlue { background-color: rgba(1, 83, 139, 0.1); color: #0284c7; }
-.bgYellow { background-color: #fffbeb; color: #d97706; }
-.bgRed { background-color: #fef2f2; color: #dc2626; }
+.bgBlue { background-color: rgba(1, 83, 139, 0.1); color: #0369a1; }
+.bgYellow { background-color: #fffbeb; color: #92400e; }
+.bgRed { background-color: #fef2f2; color: #b91c1c; }
 
 .statIcon { font-size: 18px; }
 
@@ -231,7 +231,7 @@
     left: 15px;
     top: 50%;
     transform: translateY(-50%);
-    color: #94a3b8;
+    color: #64748b;
     font-size: 14px;
 }
 

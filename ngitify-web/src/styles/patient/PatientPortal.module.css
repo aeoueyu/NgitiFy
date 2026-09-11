@@ -10,10 +10,11 @@
     --patient-shadow-hover: 0 8px 25px rgba(1, 83, 139, 0.08);
     --patient-text: #17364a;
     --patient-text-muted: #64748b;
-    --patient-text-subtle: #888888;
+    --patient-text-subtle: #5f6670;
     --patient-primary: #01538b;
     --patient-primary-dark: #013f6b;
     --patient-accent: #2dccf6;
+    --patient-accent-text: #08729f;
     --patient-radius-card: 16px;
     --patient-radius-control: 8px;
     --patient-focus-ring: 0 0 0 4px rgba(45, 204, 246, 0.24);
@@ -78,7 +79,7 @@
 
 .subtitle {
     margin: 0;
-    color: #888888;
+    color: var(--patient-text-subtle);
     font-size: 13px;
     line-height: 1.5;
     font-weight: 500;
@@ -228,7 +229,7 @@
 .sectionEyebrow {
     display: inline-block;
     margin-bottom: 8px;
-    color: var(--patient-accent);
+    color: var(--patient-accent-text);
     font-size: 11px;
     font-weight: 800;
     letter-spacing: 0.08em;
@@ -304,7 +305,7 @@
     align-items: center;
     justify-content: center;
     background: #edf5fb;
-    color: #6b8394;
+    color: #52677a;
     font-size: 16px;
 }
 
@@ -637,7 +638,7 @@
 .metricLabel {
     display: block;
     margin-bottom: 8px;
-    color: #6b8394;
+    color: #52677a;
     font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
@@ -868,7 +869,7 @@ button.toolCard:focus-visible {
 
 .emptyIcon {
     margin-bottom: 14px;
-    color: #94a3b8;
+    color: #64748b;
     font-size: 28px;
 }
 
@@ -882,7 +883,7 @@ button.toolCard:focus-visible {
 .emptyText {
     margin: 0;
     max-width: 44ch;
-    color: #94a3b8;
+    color: #64748b;
     font-size: 13px;
     line-height: 1.6;
 }
@@ -941,7 +942,7 @@ button.toolCard:focus-visible {
 .infoLabel {
     display: block;
     margin-bottom: 6px;
-    color: #6b8394;
+    color: #52677a;
     font-size: 11px;
     font-weight: 800;
     letter-spacing: 0.05em;
@@ -992,7 +993,7 @@ button.toolCard:focus-visible {
 
 .timelineText {
     margin: 0;
-    color: #6b8394;
+    color: #52677a;
     font-size: 13px;
     line-height: 1.55;
 }
@@ -1551,7 +1552,7 @@ button.toolCard:focus-visible {
 .dayName {
     padding-bottom: 6px;
     text-align: center;
-    color: #6b8394;
+    color: #52677a;
     font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;
@@ -1828,7 +1829,7 @@ button.toolCard:focus-visible {
     align-items: center;
     justify-content: center;
     padding: 54px 20px;
-    color: #6b8394;
+    color: #52677a;
     font-size: 14px;
 }
 
@@ -2780,7 +2781,7 @@ button.toolCard:focus-visible {
 .patientAiChatEyebrow,
 .patientAiQuickPromptLabel {
     display: block;
-    color: var(--patient-accent);
+    color: var(--patient-accent-text);
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 0.08em;

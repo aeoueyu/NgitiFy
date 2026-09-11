@@ -106,7 +106,7 @@ export default function LoginPage() {
     };
 
     return (
-        <div className={styles['main-container']}>
+        <main className={styles['main-container']}>
             <form className={styles['container']} onSubmit={handleLogin} noValidate>
                 <img src={logo} alt="Dentime Dental Clinic" className={styles['logo']} />
 
@@ -116,10 +116,11 @@ export default function LoginPage() {
 
                 {/* Email Field */}
                 <div className={styles['form-group']}>
-                    <label className={styles['label']}>EMAIL ADDRESS</label>
+                    <label className={styles['label']} htmlFor="login-email">EMAIL ADDRESS</label>
                     <div className={styles['input-wrapper']}>
                         <FaEnvelope className={styles['input-icon']} />
                         <input
+                            id="login-email"
                             type="email"
                             placeholder="Enter your email"
                             className={`${styles['input-field']} ${fieldErrors.email ? styles['input-error'] : ''}`}
@@ -139,10 +140,11 @@ export default function LoginPage() {
 
                 {/* Password Field */}
                 <div className={styles['form-group']}>
-                    <label className={styles['label']}>PASSWORD</label>
+                    <label className={styles['label']} htmlFor="login-password">PASSWORD</label>
                     <div className={styles['input-wrapper']}>
                         <FaLock className={styles['input-icon']} />
                         <input
+                            id="login-password"
                             type={showPassword ? 'text' : 'password'}
                             placeholder="Enter your password"
                             className={`${styles['input-field']} ${styles['input-field--padded-right']} ${fieldErrors.password ? styles['input-error'] : ''}`}
@@ -167,12 +169,13 @@ export default function LoginPage() {
                     {fieldErrors.password && (
                         <span className={styles['field-error']}>{fieldErrors.password}</span>
                     )}
-                    <span
+                    <button
+                        type="button"
                         onClick={() => navigate('/forgot-password')}
                         className={styles['forgotpass-link']}
                     >
                         Forgot Password?
-                    </span>
+                    </button>
                 </div>
 
                 {/* Server-level Error */}
@@ -190,9 +193,9 @@ export default function LoginPage() {
 
                 <div className={styles['back-home']}>
                     Don't have an account?{' '}
-                    <span onClick={() => navigate('/')}>Go back to Home</span>
+                    <button type="button" onClick={() => navigate('/')}>Go back to Home</button>
                 </div>
             </form>
-        </div>
+        </main>
     );
 }

@@ -427,6 +427,7 @@ export default function InventoryTracker() {
                     </div>
 
                     <select
+                        aria-label="Branch filter"
                         className={styles.filterSelect}
                         value={branchFilter}
                         onChange={(e) => setBranchFilter(e.target.value)}
@@ -438,6 +439,7 @@ export default function InventoryTracker() {
                     </select>
 
                     <select
+                        aria-label="Category filter"
                         className={styles.filterSelect}
                         value={categoryFilter}
                         onChange={(e) => setCategoryFilter(e.target.value)}

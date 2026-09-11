@@ -766,7 +766,7 @@ export default function AdminAppointments() {
 
     return (
         <>
-            <main className={styles['main-content']}>
+            <div className={styles['main-content']}>
                 <header className={styles.header}>
                     <div className={styles['header-left']}>
                         <h1 className={styles.title}>All Appointments</h1>
@@ -1084,7 +1084,7 @@ export default function AdminAppointments() {
                         </div>
                     )}
                 </div>
-            </main>
+            </div>
 
             {isBookingModalOpen && (
                 <div className={modalStyles.modalOverlay}>

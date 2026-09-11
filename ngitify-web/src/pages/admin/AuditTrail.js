@@ -314,6 +314,7 @@ export default function AuditTrail() {
                     <div className={scheduleStyles.filterSelectWrap}>
                         <FaFilter className={scheduleStyles.filterIcon} />
                         <select
+                            aria-label="Role filter"
                             className={scheduleStyles.filterSelect}
                             value={roleFilter}
                             onChange={(e) => setRoleFilter(e.target.value)}
@@ -332,6 +333,7 @@ export default function AuditTrail() {
                     <div className={scheduleStyles.filterSelectWrap}>
                         <FaFilter className={scheduleStyles.filterIcon} />
                         <select
+                            aria-label="Action filter"
                             className={scheduleStyles.filterSelect}
                             value={actionFilter}
                             onChange={(e) => setActionFilter(e.target.value)}

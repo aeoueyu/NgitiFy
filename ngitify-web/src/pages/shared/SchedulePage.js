@@ -1948,6 +1948,7 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
                                 <div className={styles.formGroup}>
                                 <label className={styles.formLabel}>Source <span className={styles.requiredMark}>*</span></label>
                                 <select
+                                    aria-label="Schedule source"
                                     name="source"
                                     className={`${styles.formControl} ${formErrors.source ? styles.errorBorder : ''}`}
                                     value={formState.source}
@@ -1966,6 +1967,7 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
                                 <div className={styles.formGroup}>
                                     <label className={styles.formLabel}>Branch <span className={styles.requiredMark}>*</span></label>
                                     <select
+                                        aria-label="Branch"
                                         name="branch"
                                         className={`${styles.formControl} ${formErrors.branch ? styles.errorBorder : ''}`}
                                         value={formState.branch}
@@ -2135,6 +2137,7 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
                                 <div className={styles.formGroup}>
                                     <label className={styles.formLabel}>Dentist <span className={styles.requiredMark}>*</span></label>
                                     <select
+                                        aria-label="Dentist"
                                         name="dentistId"
                                         className={`${styles.formControl} ${formErrors.dentistId ? styles.errorBorder : ''}`}
                                         value={formState.dentistId}
@@ -2222,6 +2225,7 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
                                 <div className={styles.formGroup}>
                                     <label className={styles.formLabel}>Status <span className={styles.requiredMark}>*</span></label>
                                     <select
+                                        aria-label="Schedule status"
                                         name="status"
                                         className={styles.formControl}
                                         value={formState.status}
@@ -2270,6 +2274,7 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
                                     Procedure <span className={styles.requiredMark}>*</span>
                                 </label>
                                 <select
+                                    aria-label="Procedure"
                                     name="procedure"
                                     className={`${styles.formControl} ${formErrors.procedure ? styles.errorBorder : ''}`}
                                     value={formState.procedure}
@@ -2297,6 +2302,7 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
                                         <div className={styles.helperText}>No available slots for the selected date.</div>
                                     ) : (
                                         <select
+                                            aria-label="Appointment time"
                                             name="time"
                                             className={`${styles.formControl} ${formErrors.time ? styles.errorBorder : ''}`}
                                             value={formState.time}
@@ -2626,7 +2632,7 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
 
                         <label className={styles.filterSelectWrap}>
                             <FaFilter className={styles.filterIcon} />
-                            <select className={styles.filterSelect} value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                            <select aria-label="Schedule type" className={styles.filterSelect} value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
                                 <option value="all">All Types</option>
                                 <option value="appointment">Appointments</option>
                                 <option value="phonecall">Phone Calls</option>
@@ -2719,6 +2725,7 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
                         <label className={styles.filterField}>
                             <span>Procedure</span>
                             <select
+                                aria-label="Procedure filter"
                                 className={styles.filterSelect}
                                 value={procedureFilter}
                                 onChange={(event) => setProcedureFilter(event.target.value)}
@@ -2732,6 +2739,7 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
                         <label className={styles.filterField}>
                             <span>Dentist</span>
                             <select
+                                aria-label="Dentist filter"
                                 className={styles.filterSelect}
                                 value={dentistFilter}
                                 onChange={(event) => setDentistFilter(event.target.value)}
@@ -2745,6 +2753,7 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
                         <label className={styles.filterField}>
                             <span>Branch</span>
                             <select
+                                aria-label="Branch filter"
                                 className={styles.filterSelect}
                                 value={branchFilter}
                                 onChange={(event) => setBranchFilter(event.target.value)}
@@ -3007,6 +3016,7 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
                                 <div className={styles.formGroup}>
                                     <label className={styles.formLabel}>Procedure Performed <span className={styles.requiredMark}>*</span></label>
                                     <select
+                                        aria-label="Performed procedure"
                                         name="performedProcedure"
                                         className={`${styles.formControl} ${completionErrors.performedProcedure ? styles.errorBorder : ''}`}
                                         value={completionForm.performedProcedure}
@@ -3033,6 +3043,7 @@ export default function SchedulePage({ scheduleScope = '', dentistExperience = f
                                 <div className={styles.formGroup}>
                                     <label className={styles.formLabel}>Treatment Category <span className={styles.requiredMark}>*</span></label>
                                     <select
+                                        aria-label="Treatment category"
                                         name="category"
                                         className={`${styles.formControl} ${completionErrors.category ? styles.errorBorder : ''}`}
                                         value={completionForm.category}
