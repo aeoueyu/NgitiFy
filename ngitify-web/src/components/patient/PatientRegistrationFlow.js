@@ -61,11 +61,14 @@ export function PatientRegistrationSectionCard({
     title,
     description,
     children,
+    headingLevel = 3,
 }) {
+    const Heading = `h${headingLevel}`;
+
     return (
         <div className={styles.sectionCard}>
             {eyebrow ? <p className={styles.sectionEyebrow}>{eyebrow}</p> : null}
-            {title ? <h3 className={styles.sectionTitle}>{title}</h3> : null}
+            {title ? <Heading className={styles.sectionTitle}>{title}</Heading> : null}
             {description ? <p className={styles.sectionDescription}>{description}</p> : null}
             <div className={styles.sectionBody}>{children}</div>
         </div>

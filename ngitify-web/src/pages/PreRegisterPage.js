@@ -918,7 +918,7 @@ export default function PreRegisterPage() {
                 <div className={authStyles.container}>
                     <img src={logo} alt="Dentime" className={authStyles.logo} />
                     <div className={authStyles['page-title']}>
-                        <p className={authStyles['newpass-title']}>Registration Unavailable</p>
+                        <h1 className={authStyles['newpass-title']}>Registration Unavailable</h1>
                     </div>
                     <div className={authStyles['page-header']}>
                         <p>{message || 'Invalid or expired registration link.'}</p>
@@ -932,8 +932,8 @@ export default function PreRegisterPage() {
     }
 
     const renderYesNoField = (label, value, onChange, errorKey, fieldKey) => (
-        <div className={styles.fieldGroup} data-field-key={fieldKey}>
-            <label className={styles.fieldLabel}>{label}{REQUIRED_MARK}</label>
+        <div className={styles.fieldGroup} data-field-key={fieldKey} role="group" aria-labelledby={`${fieldKey}-label`}>
+            <span id={`${fieldKey}-label`} className={styles.fieldLabel}>{label}{REQUIRED_MARK}</span>
             <div className={styles.radioGroup}>
                 <label className={`${styles.radioOption} ${value === 'yes' ? styles.radioOptionActive : ''}`}>
                     <input
@@ -982,8 +982,9 @@ export default function PreRegisterPage() {
                                 )}
                                 <div className={styles.formGrid} style={{ marginTop: '16px' }}>
                                     <div className={styles.fieldGroup} data-field-key="appointment_guestFirstName">
-                                        <label className={styles.fieldLabel}>First Name{REQUIRED_MARK}</label>
+                                        <label htmlFor="appointment-guest-first-name" className={styles.fieldLabel}>First Name{REQUIRED_MARK}</label>
                                         <input
+                                            id="appointment-guest-first-name"
                                             className={`${styles.fieldInput} ${errors.appointment_guestFirstName ? styles.errorBorder : ''}`}
                                             value={appointmentInfo.guestFirstName || ''}
                                             onChange={(e) => handleAppointmentInfoChange('guestFirstName', e.target.value)}
@@ -992,8 +993,9 @@ export default function PreRegisterPage() {
                                         {errors.appointment_guestFirstName && <span className={styles.errorText}>{errors.appointment_guestFirstName}</span>}
                                     </div>
                                     <div className={styles.fieldGroup} data-field-key="appointment_guestLastName">
-                                        <label className={styles.fieldLabel}>Last Name{REQUIRED_MARK}</label>
+                                        <label htmlFor="appointment-guest-last-name" className={styles.fieldLabel}>Last Name{REQUIRED_MARK}</label>
                                         <input
+                                            id="appointment-guest-last-name"
                                             className={`${styles.fieldInput} ${errors.appointment_guestLastName ? styles.errorBorder : ''}`}
                                             value={appointmentInfo.guestLastName || ''}
                                             onChange={(e) => handleAppointmentInfoChange('guestLastName', e.target.value)}
@@ -1002,10 +1004,11 @@ export default function PreRegisterPage() {
                                         {errors.appointment_guestLastName && <span className={styles.errorText}>{errors.appointment_guestLastName}</span>}
                                     </div>
                                     <div className={styles.fieldGroup} data-field-key="appointment_guestPhone">
-                                        <label className={styles.fieldLabel}>Phone{REQUIRED_MARK}</label>
+                                        <label htmlFor="appointment-guest-phone" className={styles.fieldLabel}>Phone{REQUIRED_MARK}</label>
                                         <div className={`${styles.phoneInputGroup} ${errors.appointment_guestPhone ? styles.errorBorder : ''}`}>
                                             <span className={styles.phonePrefix}>+63</span>
                                             <input
+                                                id="appointment-guest-phone"
                                                 className={styles.phoneField}
                                                 value={appointmentInfo.guestPhone || ''}
                                                 onChange={(e) => handleAppointmentInfoChange('guestPhone', e.target.value)}
@@ -1016,8 +1019,9 @@ export default function PreRegisterPage() {
                                         {errors.appointment_guestPhone && <span className={styles.errorText}>{errors.appointment_guestPhone}</span>}
                                     </div>
                                     <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Email{REQUIRED_MARK}</label>
+                                        <label htmlFor="appointment-guest-email" className={styles.fieldLabel}>Email{REQUIRED_MARK}</label>
                                         <input
+                                            id="appointment-guest-email"
                                             type="email"
                                             className={styles.fieldInput}
                                             value={appointmentInfo.guestEmail || ''}
@@ -1026,8 +1030,9 @@ export default function PreRegisterPage() {
                                         />
                                     </div>
                                     <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Branch{REQUIRED_MARK}</label>
+                                        <label htmlFor="appointment-branch" className={styles.fieldLabel}>Branch{REQUIRED_MARK}</label>
                                         <input
+                                            id="appointment-branch"
                                             className={styles.fieldInput}
                                             value={appointmentInfo.branch || ''}
                                             readOnly
@@ -1035,8 +1040,9 @@ export default function PreRegisterPage() {
                                         />
                                     </div>
                                     <div className={styles.fieldGroup} data-field-key="appointment_guestBirthdate">
-                                        <label className={styles.fieldLabel}>Birthdate{REQUIRED_MARK}</label>
+                                        <label htmlFor="appointment-guest-birthdate" className={styles.fieldLabel}>Birthdate{REQUIRED_MARK}</label>
                                         <input
+                                            id="appointment-guest-birthdate"
                                             type="date"
                                             className={`${styles.fieldInput} ${errors.appointment_guestBirthdate ? styles.errorBorder : ''}`}
                                             value={formatDateInputValue(appointmentInfo.guestBirthdate)}
@@ -1046,8 +1052,9 @@ export default function PreRegisterPage() {
                                         {errors.appointment_guestBirthdate && <span className={styles.errorText}>{errors.appointment_guestBirthdate}</span>}
                                     </div>
                                     <div className={styles.fieldGroup} data-field-key="appointment_guestGender">
-                                        <label className={styles.fieldLabel}>Gender{REQUIRED_MARK}</label>
+                                        <label htmlFor="appointment-guest-gender" className={styles.fieldLabel}>Gender{REQUIRED_MARK}</label>
                                         <select
+                                            id="appointment-guest-gender"
                                             className={`${styles.fieldSelect} ${errors.appointment_guestGender ? styles.errorBorder : ''}`}
                                             value={appointmentInfo.guestGender || ''}
                                             onChange={(e) => handleAppointmentInfoChange('guestGender', e.target.value)}
@@ -1085,12 +1092,13 @@ export default function PreRegisterPage() {
                             <PatientRegistrationSectionCard
                                 eyebrow="Identity"
                                 title="Identity"
+                                headingLevel={2}
                                 description="Review your booking details and complete your personal information below."
                             >
                                 <div className={styles.formGrid}>
                                     <div className={styles.fieldGroup} data-field-key="profile_occupation">
-                                        <label className={styles.fieldLabel}>Occupation{REQUIRED_MARK}</label>
-                                        <select className={`${styles.fieldSelect} ${errors.profile_occupation ? styles.errorBorder : ''}`} value={profile.occupation} onChange={(e) => handleProfileChange('occupation', e.target.value)}>
+                                        <label htmlFor="profile-occupation" className={styles.fieldLabel}>Occupation{REQUIRED_MARK}</label>
+                                        <select id="profile-occupation" className={`${styles.fieldSelect} ${errors.profile_occupation ? styles.errorBorder : ''}`} value={profile.occupation} onChange={(e) => handleProfileChange('occupation', e.target.value)}>
                                             <option value="">Select occupation</option>
                                             {OCCUPATION_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                                         </select>
@@ -1098,14 +1106,14 @@ export default function PreRegisterPage() {
                                     </div>
                                     {profile.occupation === 'Other' && (
                                         <div className={styles.fieldGroup} data-field-key="profile_occupationOther">
-                                            <label className={styles.fieldLabel}>Occupation, If Other{REQUIRED_MARK}</label>
-                                            <input className={`${styles.fieldInput} ${errors.profile_occupationOther ? styles.errorBorder : ''}`} value={profile.occupationOther} onChange={(e) => handleProfileChange('occupationOther', e.target.value)} />
+                                            <label htmlFor="profile-occupation-other" className={styles.fieldLabel}>Occupation, If Other{REQUIRED_MARK}</label>
+                                            <input id="profile-occupation-other" className={`${styles.fieldInput} ${errors.profile_occupationOther ? styles.errorBorder : ''}`} value={profile.occupationOther} onChange={(e) => handleProfileChange('occupationOther', e.target.value)} />
                                             {errors.profile_occupationOther && <span className={styles.errorText}>{errors.profile_occupationOther}</span>}
                                         </div>
                                     )}
                                     <div className={styles.fieldGroup} data-field-key="profile_civilStatus">
-                                        <label className={styles.fieldLabel}>Civil Status{REQUIRED_MARK}</label>
-                                        <select className={`${styles.fieldSelect} ${errors.profile_civilStatus ? styles.errorBorder : ''}`} value={profile.civilStatus} onChange={(e) => handleProfileChange('civilStatus', e.target.value)}>
+                                        <label htmlFor="profile-civil-status" className={styles.fieldLabel}>Civil Status{REQUIRED_MARK}</label>
+                                        <select id="profile-civil-status" className={`${styles.fieldSelect} ${errors.profile_civilStatus ? styles.errorBorder : ''}`} value={profile.civilStatus} onChange={(e) => handleProfileChange('civilStatus', e.target.value)}>
                                             <option value="">Select status</option>
                                             <option value="Single">Single</option>
                                             <option value="Married">Married</option>
@@ -1116,8 +1124,8 @@ export default function PreRegisterPage() {
                                         {errors.profile_civilStatus && <span className={styles.errorText}>{errors.profile_civilStatus}</span>}
                                     </div>
                                     <div className={styles.fieldGroup} data-field-key="profile_nationality">
-                                        <label className={styles.fieldLabel}>Nationality{REQUIRED_MARK}</label>
-                                        <select className={`${styles.fieldSelect} ${errors.profile_nationality || errors.profile_nationalityOther ? styles.errorBorder : ''}`} value={profile.nationality} onChange={(e) => handleProfileChange('nationality', e.target.value)}>
+                                        <label htmlFor="profile-nationality" className={styles.fieldLabel}>Nationality{REQUIRED_MARK}</label>
+                                        <select id="profile-nationality" className={`${styles.fieldSelect} ${errors.profile_nationality || errors.profile_nationalityOther ? styles.errorBorder : ''}`} value={profile.nationality} onChange={(e) => handleProfileChange('nationality', e.target.value)}>
                                             <option value="">Select nationality</option>
                                             {NATIONALITY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                                         </select>
@@ -1125,14 +1133,14 @@ export default function PreRegisterPage() {
                                     </div>
                                     {profile.nationality === 'Other' && (
                                         <div className={styles.fieldGroup} data-field-key="profile_nationalityOther">
-                                            <label className={styles.fieldLabel}>Nationality, If Other{REQUIRED_MARK}</label>
-                                            <input className={`${styles.fieldInput} ${errors.profile_nationalityOther ? styles.errorBorder : ''}`} value={profile.nationalityOther} onChange={(e) => handleProfileChange('nationalityOther', e.target.value)} />
+                                            <label htmlFor="profile-nationality-other" className={styles.fieldLabel}>Nationality, If Other{REQUIRED_MARK}</label>
+                                            <input id="profile-nationality-other" className={`${styles.fieldInput} ${errors.profile_nationalityOther ? styles.errorBorder : ''}`} value={profile.nationalityOther} onChange={(e) => handleProfileChange('nationalityOther', e.target.value)} />
                                             {errors.profile_nationalityOther && <span className={styles.errorText}>{errors.profile_nationalityOther}</span>}
                                         </div>
                                     )}
                                     <div className={styles.fieldGroup} data-field-key="profile_religion">
-                                        <label className={styles.fieldLabel}>Religion{REQUIRED_MARK}</label>
-                                        <select className={`${styles.fieldSelect} ${errors.profile_religion || errors.profile_religionOther ? styles.errorBorder : ''}`} value={profile.religion} onChange={(e) => handleProfileChange('religion', e.target.value)}>
+                                        <label htmlFor="profile-religion" className={styles.fieldLabel}>Religion{REQUIRED_MARK}</label>
+                                        <select id="profile-religion" className={`${styles.fieldSelect} ${errors.profile_religion || errors.profile_religionOther ? styles.errorBorder : ''}`} value={profile.religion} onChange={(e) => handleProfileChange('religion', e.target.value)}>
                                             <option value="">Select religion</option>
                                             {RELIGION_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                                         </select>
@@ -1140,30 +1148,30 @@ export default function PreRegisterPage() {
                                     </div>
                                     {profile.religion === 'Other' && (
                                         <div className={styles.fieldGroup} data-field-key="profile_religionOther">
-                                            <label className={styles.fieldLabel}>Religion, If Other{REQUIRED_MARK}</label>
-                                            <input className={`${styles.fieldInput} ${errors.profile_religionOther ? styles.errorBorder : ''}`} value={profile.religionOther} onChange={(e) => handleProfileChange('religionOther', e.target.value)} />
+                                            <label htmlFor="profile-religion-other" className={styles.fieldLabel}>Religion, If Other{REQUIRED_MARK}</label>
+                                            <input id="profile-religion-other" className={`${styles.fieldInput} ${errors.profile_religionOther ? styles.errorBorder : ''}`} value={profile.religionOther} onChange={(e) => handleProfileChange('religionOther', e.target.value)} />
                                             {errors.profile_religionOther && <span className={styles.errorText}>{errors.profile_religionOther}</span>}
                                         </div>
                                     )}
                                     <div className={styles.fieldGroup} data-field-key="profile_homePhone">
-                                        <label className={styles.fieldLabel}>Home Phone</label>
+                                        <label htmlFor="profile-home-phone" className={styles.fieldLabel}>Home Phone</label>
                                         <div className={`${styles.phoneInputGroup} ${errors.profile_homePhone ? styles.errorBorder : ''}`}>
                                             <span className={styles.phonePrefix}>{LANDLINE_PREFIX}</span>
-                                            <input className={styles.phoneField} value={profile.homePhone} onChange={(e) => handleLandlineChange('homePhone', e.target.value)} maxLength={8} placeholder="1234567" />
+                                            <input id="profile-home-phone" className={styles.phoneField} value={profile.homePhone} onChange={(e) => handleLandlineChange('homePhone', e.target.value)} maxLength={8} placeholder="1234567" />
                                         </div>
                                         {errors.profile_homePhone && <span className={styles.errorText}>{errors.profile_homePhone}</span>}
                                     </div>
                                     <div className={styles.fieldGroup} data-field-key="profile_workPhone">
-                                        <label className={styles.fieldLabel}>Work Phone</label>
+                                        <label htmlFor="profile-work-phone" className={styles.fieldLabel}>Work Phone</label>
                                         <div className={`${styles.phoneInputGroup} ${errors.profile_workPhone ? styles.errorBorder : ''}`}>
                                             <span className={styles.phonePrefix}>{LANDLINE_PREFIX}</span>
-                                            <input className={styles.phoneField} value={profile.workPhone} onChange={(e) => handleLandlineChange('workPhone', e.target.value)} maxLength={8} placeholder="1234567" />
+                                            <input id="profile-work-phone" className={styles.phoneField} value={profile.workPhone} onChange={(e) => handleLandlineChange('workPhone', e.target.value)} maxLength={8} placeholder="1234567" />
                                         </div>
                                         {errors.profile_workPhone && <span className={styles.errorText}>{errors.profile_workPhone}</span>}
                                     </div>
                                     <div className={styles.fieldGroup}>
-                                        <label className={styles.fieldLabel}>Referred By</label>
-                                        <input className={styles.fieldInput} value={profile.referredBy} onChange={(e) => handleProfileChange('referredBy', e.target.value)} />
+                                        <label htmlFor="profile-referred-by" className={styles.fieldLabel}>Referred By</label>
+                                        <input id="profile-referred-by" className={styles.fieldInput} value={profile.referredBy} onChange={(e) => handleProfileChange('referredBy', e.target.value)} />
                                     </div>
                                 </div>
                             </PatientRegistrationSectionCard>
@@ -1180,50 +1188,51 @@ export default function PreRegisterPage() {
                             <PatientRegistrationSectionCard
                                 eyebrow="Contacts"
                                 title="Contacts"
+                                headingLevel={2}
                                 description="Add your address and the people the clinic can contact if needed."
                             >
-                                <h4 className={styles.sectionTitle} style={{ fontSize: '1rem', marginTop: '18px' }}>Home Address</h4>
+                                <h3 className={styles.sectionTitle} style={{ fontSize: '1rem', marginTop: '18px' }}>Home Address</h3>
                                 <div className={styles.formGrid}>
                                     <div className={styles.fieldGroup} data-field-key="home_region">
-                                        <label className={styles.fieldLabel}>Region{REQUIRED_MARK}</label>
-                                        <select className={`${styles.fieldSelect} ${errors.home_region ? styles.errorBorder : ''}`} value={homeAddress.region} onChange={(e) => handleAddressChange('region', e.target.value)}>
+                                        <label htmlFor="home-region" className={styles.fieldLabel}>Region{REQUIRED_MARK}</label>
+                                        <select id="home-region" className={`${styles.fieldSelect} ${errors.home_region ? styles.errorBorder : ''}`} value={homeAddress.region} onChange={(e) => handleAddressChange('region', e.target.value)}>
                                             <option value="">Select region</option>
                                             {regions.map((region) => <option key={region.code} value={region.code}>{region.name}</option>)}
                                         </select>
                                         {errors.home_region && <span className={styles.errorText}>{errors.home_region}</span>}
                                     </div>
                                     <div className={styles.fieldGroup} data-field-key="home_province">
-                                        <label className={styles.fieldLabel}>Province{REQUIRED_MARK}</label>
-                                        <select className={`${styles.fieldSelect} ${errors.home_province ? styles.errorBorder : ''}`} value={homeAddress.province} onChange={(e) => handleAddressChange('province', e.target.value)} disabled={!homeAddress.region}>
+                                        <label htmlFor="home-province" className={styles.fieldLabel}>Province{REQUIRED_MARK}</label>
+                                        <select id="home-province" className={`${styles.fieldSelect} ${errors.home_province ? styles.errorBorder : ''}`} value={homeAddress.province} onChange={(e) => handleAddressChange('province', e.target.value)} disabled={!homeAddress.region}>
                                             <option value="">Select province</option>
                                             {availableProvinces.map((province) => <option key={province.code} value={province.code}>{province.name}</option>)}
                                         </select>
                                         {errors.home_province && <span className={styles.errorText}>{errors.home_province}</span>}
                                     </div>
                                     <div className={styles.fieldGroup} data-field-key="home_city">
-                                        <label className={styles.fieldLabel}>City / Municipality{REQUIRED_MARK}</label>
-                                        <select className={`${styles.fieldSelect} ${errors.home_city ? styles.errorBorder : ''}`} value={homeAddress.city} onChange={(e) => handleAddressChange('city', e.target.value)} disabled={!homeAddress.province}>
+                                        <label htmlFor="home-city" className={styles.fieldLabel}>City / Municipality{REQUIRED_MARK}</label>
+                                        <select id="home-city" className={`${styles.fieldSelect} ${errors.home_city ? styles.errorBorder : ''}`} value={homeAddress.city} onChange={(e) => handleAddressChange('city', e.target.value)} disabled={!homeAddress.province}>
                                             <option value="">Select city</option>
                                             {availableCities.map((city) => <option key={city.code} value={city.code}>{city.name}</option>)}
                                         </select>
                                         {errors.home_city && <span className={styles.errorText}>{errors.home_city}</span>}
                                     </div>
                                     <div className={styles.fieldGroup} data-field-key="home_barangay">
-                                        <label className={styles.fieldLabel}>Barangay{REQUIRED_MARK}</label>
-                                        <select className={`${styles.fieldSelect} ${errors.home_barangay ? styles.errorBorder : ''}`} value={homeAddress.barangay} onChange={(e) => handleAddressChange('barangay', e.target.value)} disabled={!homeAddress.city}>
+                                        <label htmlFor="home-barangay" className={styles.fieldLabel}>Barangay{REQUIRED_MARK}</label>
+                                        <select id="home-barangay" className={`${styles.fieldSelect} ${errors.home_barangay ? styles.errorBorder : ''}`} value={homeAddress.barangay} onChange={(e) => handleAddressChange('barangay', e.target.value)} disabled={!homeAddress.city}>
                                             <option value="">Select barangay</option>
                                             {availableBarangays.map((barangay) => <option key={barangay} value={barangay}>{barangay}</option>)}
                                         </select>
                                         {errors.home_barangay && <span className={styles.errorText}>{errors.home_barangay}</span>}
                                     </div>
                                     <div className={styles.fieldGroup} data-field-key="home_street">
-                                        <label className={styles.fieldLabel}>Street{REQUIRED_MARK}</label>
-                                        <input className={`${styles.fieldInput} ${errors.home_street ? styles.errorBorder : ''}`} value={homeAddress.street} onChange={(e) => handleAddressChange('street', e.target.value)} />
+                                        <label htmlFor="home-street" className={styles.fieldLabel}>Street{REQUIRED_MARK}</label>
+                                        <input id="home-street" className={`${styles.fieldInput} ${errors.home_street ? styles.errorBorder : ''}`} value={homeAddress.street} onChange={(e) => handleAddressChange('street', e.target.value)} />
                                         {errors.home_street && <span className={styles.errorText}>{errors.home_street}</span>}
                                     </div>
                                     <div className={styles.fieldGroup} data-field-key="home_houseNumber">
-                                        <label className={styles.fieldLabel}>House Number{REQUIRED_MARK}</label>
-                                        <input className={`${styles.fieldInput} ${errors.home_houseNumber ? styles.errorBorder : ''}`} value={homeAddress.houseNumber} onChange={(e) => handleAddressChange('houseNumber', e.target.value)} />
+                                        <label htmlFor="home-house-number" className={styles.fieldLabel}>House Number{REQUIRED_MARK}</label>
+                                        <input id="home-house-number" className={`${styles.fieldInput} ${errors.home_houseNumber ? styles.errorBorder : ''}`} value={homeAddress.houseNumber} onChange={(e) => handleAddressChange('houseNumber', e.target.value)} />
                                         {errors.home_houseNumber && <span className={styles.errorText}>{errors.home_houseNumber}</span>}
                                     </div>
                                 </div>
@@ -1231,17 +1240,18 @@ export default function PreRegisterPage() {
 
                             <PatientRegistrationSectionCard
                                 title="Emergency Contact"
+                                headingLevel={2}
                                 description="Provide the person the clinic can contact if an urgent concern comes up."
                             >
                                 <div className={styles.formGrid}>
                                     <div className={styles.fieldGroup} data-field-key="emergencyContact_name">
-                                        <label className={styles.fieldLabel}>Emergency Contact Name{REQUIRED_MARK}</label>
-                                        <input className={`${styles.fieldInput} ${errors.emergencyContact_name ? styles.errorBorder : ''}`} value={emergencyContact.name} onChange={(e) => handleContactChange('emergencyContact', 'name', e.target.value)} />
+                                        <label htmlFor="emergency-contact-name" className={styles.fieldLabel}>Emergency Contact Name{REQUIRED_MARK}</label>
+                                        <input id="emergency-contact-name" className={`${styles.fieldInput} ${errors.emergencyContact_name ? styles.errorBorder : ''}`} value={emergencyContact.name} onChange={(e) => handleContactChange('emergencyContact', 'name', e.target.value)} />
                                         {errors.emergencyContact_name && <span className={styles.errorText}>{errors.emergencyContact_name}</span>}
                                     </div>
                                     <div className={styles.fieldGroup} data-field-key="emergencyContact_relationship">
-                                        <label className={styles.fieldLabel}>Relationship{REQUIRED_MARK}</label>
-                                        <select className={`${styles.fieldSelect} ${errors.emergencyContact_relationship ? styles.errorBorder : ''}`} value={emergencyContact.relationship} onChange={(e) => handleContactChange('emergencyContact', 'relationship', e.target.value)}>
+                                        <label htmlFor="emergency-contact-relationship" className={styles.fieldLabel}>Relationship{REQUIRED_MARK}</label>
+                                        <select id="emergency-contact-relationship" className={`${styles.fieldSelect} ${errors.emergencyContact_relationship ? styles.errorBorder : ''}`} value={emergencyContact.relationship} onChange={(e) => handleContactChange('emergencyContact', 'relationship', e.target.value)}>
                                             <option value="">Select relationship</option>
                                             {RELATIONSHIP_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                                         </select>
@@ -1249,16 +1259,16 @@ export default function PreRegisterPage() {
                                     </div>
                                     {emergencyContact.relationship === 'Other' && (
                                         <div className={styles.fieldGroup} data-field-key="emergencyContact_relationshipOther">
-                                            <label className={styles.fieldLabel}>Relationship, If Other{REQUIRED_MARK}</label>
-                                            <input className={`${styles.fieldInput} ${errors.emergencyContact_relationshipOther ? styles.errorBorder : ''}`} value={emergencyContact.relationshipOther} onChange={(e) => handleContactChange('emergencyContact', 'relationshipOther', e.target.value)} />
+                                            <label htmlFor="emergency-contact-relationship-other" className={styles.fieldLabel}>Relationship, If Other{REQUIRED_MARK}</label>
+                                            <input id="emergency-contact-relationship-other" className={`${styles.fieldInput} ${errors.emergencyContact_relationshipOther ? styles.errorBorder : ''}`} value={emergencyContact.relationshipOther} onChange={(e) => handleContactChange('emergencyContact', 'relationshipOther', e.target.value)} />
                                             {errors.emergencyContact_relationshipOther && <span className={styles.errorText}>{errors.emergencyContact_relationshipOther}</span>}
                                         </div>
                                     )}
                                     <div className={styles.fieldGroup} data-field-key="emergencyContact_contactNumber">
-                                        <label className={styles.fieldLabel}>Mobile Number{REQUIRED_MARK}</label>
+                                        <label htmlFor="emergency-contact-phone" className={styles.fieldLabel}>Mobile Number{REQUIRED_MARK}</label>
                                         <div className={`${styles.phoneInputGroup} ${errors.emergencyContact_contactNumber ? styles.errorBorder : ''}`}>
                                             <span className={styles.phonePrefix}>+63</span>
-                                            <input className={styles.phoneField} value={emergencyContact.contactNumber} onChange={(e) => handleMobileChange('emergencyContact', 'contactNumber', e.target.value)} maxLength={10} placeholder="9xxxxxxxxx" />
+                                            <input id="emergency-contact-phone" className={styles.phoneField} value={emergencyContact.contactNumber} onChange={(e) => handleMobileChange('emergencyContact', 'contactNumber', e.target.value)} maxLength={10} placeholder="9xxxxxxxxx" />
                                         </div>
                                         {errors.emergencyContact_contactNumber && <span className={styles.errorText}>{errors.emergencyContact_contactNumber}</span>}
                                     </div>
@@ -1268,17 +1278,18 @@ export default function PreRegisterPage() {
                             {isMinor && (
                                 <PatientRegistrationSectionCard
                                     title="Guardian Details"
+                                    headingLevel={2}
                                     description="Since the patient is a minor, guardian information is required before proceeding."
                                 >
                                     <div className={styles.formGrid}>
                                         <div className={styles.fieldGroup} data-field-key="guardian_name">
-                                            <label className={styles.fieldLabel}>Guardian Name{REQUIRED_MARK}</label>
-                                            <input className={`${styles.fieldInput} ${errors.guardian_name ? styles.errorBorder : ''}`} value={guardian.name} onChange={(e) => handleContactChange('guardian', 'name', e.target.value)} />
+                                            <label htmlFor="guardian-name" className={styles.fieldLabel}>Guardian Name{REQUIRED_MARK}</label>
+                                            <input id="guardian-name" className={`${styles.fieldInput} ${errors.guardian_name ? styles.errorBorder : ''}`} value={guardian.name} onChange={(e) => handleContactChange('guardian', 'name', e.target.value)} />
                                             {errors.guardian_name && <span className={styles.errorText}>{errors.guardian_name}</span>}
                                         </div>
                                         <div className={styles.fieldGroup} data-field-key="guardian_occupation">
-                                            <label className={styles.fieldLabel}>Occupation{REQUIRED_MARK}</label>
-                                            <select className={`${styles.fieldSelect} ${errors.guardian_occupation ? styles.errorBorder : ''}`} value={guardian.occupation} onChange={(e) => handleContactChange('guardian', 'occupation', e.target.value)}>
+                                            <label htmlFor="guardian-occupation" className={styles.fieldLabel}>Occupation{REQUIRED_MARK}</label>
+                                            <select id="guardian-occupation" className={`${styles.fieldSelect} ${errors.guardian_occupation ? styles.errorBorder : ''}`} value={guardian.occupation} onChange={(e) => handleContactChange('guardian', 'occupation', e.target.value)}>
                                                 <option value="">Select occupation</option>
                                                 {OCCUPATION_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                                             </select>
@@ -1286,14 +1297,14 @@ export default function PreRegisterPage() {
                                         </div>
                                         {guardian.occupation === 'Other' && (
                                             <div className={styles.fieldGroup} data-field-key="guardian_occupationOther">
-                                                <label className={styles.fieldLabel}>Occupation, If Other{REQUIRED_MARK}</label>
-                                                <input className={`${styles.fieldInput} ${errors.guardian_occupationOther ? styles.errorBorder : ''}`} value={guardian.occupationOther} onChange={(e) => handleContactChange('guardian', 'occupationOther', e.target.value)} />
+                                                <label htmlFor="guardian-occupation-other" className={styles.fieldLabel}>Occupation, If Other{REQUIRED_MARK}</label>
+                                                <input id="guardian-occupation-other" className={`${styles.fieldInput} ${errors.guardian_occupationOther ? styles.errorBorder : ''}`} value={guardian.occupationOther} onChange={(e) => handleContactChange('guardian', 'occupationOther', e.target.value)} />
                                                 {errors.guardian_occupationOther && <span className={styles.errorText}>{errors.guardian_occupationOther}</span>}
                                             </div>
                                         )}
                                         <div className={styles.fieldGroup} data-field-key="guardian_relationship">
-                                            <label className={styles.fieldLabel}>Relationship{REQUIRED_MARK}</label>
-                                            <select className={`${styles.fieldSelect} ${errors.guardian_relationship ? styles.errorBorder : ''}`} value={guardian.relationship} onChange={(e) => handleContactChange('guardian', 'relationship', e.target.value)}>
+                                            <label htmlFor="guardian-relationship" className={styles.fieldLabel}>Relationship{REQUIRED_MARK}</label>
+                                            <select id="guardian-relationship" className={`${styles.fieldSelect} ${errors.guardian_relationship ? styles.errorBorder : ''}`} value={guardian.relationship} onChange={(e) => handleContactChange('guardian', 'relationship', e.target.value)}>
                                                 <option value="">Select relationship</option>
                                                 {RELATIONSHIP_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                                             </select>
@@ -1301,16 +1312,16 @@ export default function PreRegisterPage() {
                                         </div>
                                         {guardian.relationship === 'Other' && (
                                             <div className={styles.fieldGroup} data-field-key="guardian_relationshipOther">
-                                                <label className={styles.fieldLabel}>Relationship, If Other{REQUIRED_MARK}</label>
-                                                <input className={`${styles.fieldInput} ${errors.guardian_relationshipOther ? styles.errorBorder : ''}`} value={guardian.relationshipOther} onChange={(e) => handleContactChange('guardian', 'relationshipOther', e.target.value)} />
+                                                <label htmlFor="guardian-relationship-other" className={styles.fieldLabel}>Relationship, If Other{REQUIRED_MARK}</label>
+                                                <input id="guardian-relationship-other" className={`${styles.fieldInput} ${errors.guardian_relationshipOther ? styles.errorBorder : ''}`} value={guardian.relationshipOther} onChange={(e) => handleContactChange('guardian', 'relationshipOther', e.target.value)} />
                                                 {errors.guardian_relationshipOther && <span className={styles.errorText}>{errors.guardian_relationshipOther}</span>}
                                             </div>
                                         )}
                                         <div className={styles.fieldGroup} data-field-key="guardian_contactNumber">
-                                            <label className={styles.fieldLabel}>Guardian Phone{REQUIRED_MARK}</label>
+                                            <label htmlFor="guardian-phone" className={styles.fieldLabel}>Guardian Phone{REQUIRED_MARK}</label>
                                             <div className={`${styles.phoneInputGroup} ${errors.guardian_contactNumber ? styles.errorBorder : ''}`}>
                                                 <span className={styles.phonePrefix}>+63</span>
-                                                <input className={styles.phoneField} value={guardian.contactNumber} onChange={(e) => handleMobileChange('guardian', 'contactNumber', e.target.value)} maxLength={10} placeholder="9xxxxxxxxx" />
+                                                <input id="guardian-phone" className={styles.phoneField} value={guardian.contactNumber} onChange={(e) => handleMobileChange('guardian', 'contactNumber', e.target.value)} maxLength={10} placeholder="9xxxxxxxxx" />
                                             </div>
                                             {errors.guardian_contactNumber && <span className={styles.errorText}>{errors.guardian_contactNumber}</span>}
                                         </div>
@@ -1339,12 +1350,13 @@ export default function PreRegisterPage() {
                                     <PatientRegistrationSectionCard
                                         eyebrow="Medical & Dental"
                                         title="Medical & Dental"
+                                        headingLevel={2}
                                         description="Complete your consultation reason, dental history, physician details, and medical background."
                                     >
                                         <div className={styles.formGrid} style={{ marginBottom: '20px' }}>
                                             <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="profile_reasonForConsultation">
-                                                <label className={styles.fieldLabel}>Reason for Consultation{REQUIRED_MARK}</label>
-                                                <textarea className={`${styles.fieldTextarea} ${errors.profile_reasonForConsultation ? styles.errorBorder : ''}`} value={profile.reasonForConsultation} onChange={(e) => handleProfileChange('reasonForConsultation', e.target.value)} />
+                                                <label htmlFor="profile-consultation-reason" className={styles.fieldLabel}>Reason for Consultation{REQUIRED_MARK}</label>
+                                                <textarea id="profile-consultation-reason" className={`${styles.fieldTextarea} ${errors.profile_reasonForConsultation ? styles.errorBorder : ''}`} value={profile.reasonForConsultation} onChange={(e) => handleProfileChange('reasonForConsultation', e.target.value)} />
                                                 {errors.profile_reasonForConsultation && <span className={styles.errorText}>{errors.profile_reasonForConsultation}</span>}
                                             </div>
                                         </div>
@@ -1352,8 +1364,8 @@ export default function PreRegisterPage() {
                                             <h3 className={styles.sectionTitle} style={{ fontSize: '1rem' }}>Dental History</h3>
                                             <div className={styles.intakeRow}>
                                                 <div className={styles.fieldGroup} data-field-key="dentalHistory_lastExamDate">
-                                                    <label className={styles.fieldLabel}>Last Dental Visit</label>
-                                                    <input type="date" className={`${styles.fieldInput} ${errors.dentalHistory_lastExamDate ? styles.errorBorder : ''}`} value={dentalHistory.lastExamDate} onChange={(e) => handleDentalChange('lastExamDate', e.target.value)} max={getTodayDate()} />
+                                                    <label htmlFor="dental-last-visit" className={styles.fieldLabel}>Last Dental Visit</label>
+                                                    <input id="dental-last-visit" type="date" className={`${styles.fieldInput} ${errors.dentalHistory_lastExamDate ? styles.errorBorder : ''}`} value={dentalHistory.lastExamDate} onChange={(e) => handleDentalChange('lastExamDate', e.target.value)} max={getTodayDate()} />
                                                     {errors.dentalHistory_lastExamDate && <span className={styles.errorText}>{errors.dentalHistory_lastExamDate}</span>}
                                                 </div>
                                                 <div className={styles.intakeSpacer} />
@@ -1361,8 +1373,8 @@ export default function PreRegisterPage() {
                                             <div className={styles.intakeRow}>
                                                 {renderYesNoField('Reaction or complication after dental treatment?', dentalHistory.hadTreatmentReaction, (value) => handleDentalChange('hadTreatmentReaction', value), 'dentalHistory_hadTreatmentReaction', 'dentalHistory_hadTreatmentReaction')}
                                                 <div className={styles.fieldGroup} data-field-key="dentalHistory_reactionDetails">
-                                                    <label className={styles.fieldLabel}>If Yes, Please Detail</label>
-                                                    <textarea className={`${styles.fieldTextarea} ${errors.dentalHistory_reactionDetails ? styles.errorBorder : ''}`} value={dentalHistory.reactionDetails} onChange={(e) => handleDentalChange('reactionDetails', e.target.value)} />
+                                                    <label htmlFor="dental-reaction-details" className={styles.fieldLabel}>If Yes, Please Detail</label>
+                                                    <textarea id="dental-reaction-details" className={`${styles.fieldTextarea} ${errors.dentalHistory_reactionDetails ? styles.errorBorder : ''}`} value={dentalHistory.reactionDetails} onChange={(e) => handleDentalChange('reactionDetails', e.target.value)} />
                                                     {errors.dentalHistory_reactionDetails && <span className={styles.errorText}>{errors.dentalHistory_reactionDetails}</span>}
                                                 </div>
                                             </div>
@@ -1372,8 +1384,8 @@ export default function PreRegisterPage() {
                                             </div>
                                             <div className={styles.intakeRow}>
                                                 <div className={styles.fieldGroup}>
-                                                    <label className={styles.fieldLabel}>Additional Dental Notes</label>
-                                                    <textarea className={styles.fieldTextarea} value={dentalHistory.notes} onChange={(e) => handleDentalChange('notes', e.target.value)} />
+                                                    <label htmlFor="dental-notes" className={styles.fieldLabel}>Additional Dental Notes</label>
+                                                    <textarea id="dental-notes" className={styles.fieldTextarea} value={dentalHistory.notes} onChange={(e) => handleDentalChange('notes', e.target.value)} />
                                                 </div>
                                                 <div className={styles.intakeSpacer} />
                                             </div>
@@ -1385,12 +1397,12 @@ export default function PreRegisterPage() {
                                             <h3 className={styles.sectionTitle} style={{ fontSize: '1rem' }}>Attending Physician</h3>
                                             <div className={styles.intakeRow}>
                                                 <div className={styles.fieldGroup}>
-                                                    <label className={styles.fieldLabel}>Physician Name</label>
-                                                    <input className={styles.fieldInput} value={physician.name} onChange={(e) => handleContactChange('physician', 'name', e.target.value)} />
+                                                    <label htmlFor="intake-physician-name" className={styles.fieldLabel}>Physician Name</label>
+                                                    <input id="intake-physician-name" className={styles.fieldInput} value={physician.name} onChange={(e) => handleContactChange('physician', 'name', e.target.value)} />
                                                 </div>
                                                 <div className={styles.fieldGroup}>
-                                                    <label className={styles.fieldLabel}>Specialty, If Applicable</label>
-                                                    <select className={styles.fieldSelect} value={physician.specialty} onChange={(e) => handleContactChange('physician', 'specialty', e.target.value)}>
+                                                    <label htmlFor="intake-physician-specialty" className={styles.fieldLabel}>Specialty, If Applicable</label>
+                                                    <select id="intake-physician-specialty" className={styles.fieldSelect} value={physician.specialty} onChange={(e) => handleContactChange('physician', 'specialty', e.target.value)}>
                                                         <option value="">Select specialty</option>
                                                         {PHYSICIAN_SPECIALTY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                                                     </select>
@@ -1399,8 +1411,8 @@ export default function PreRegisterPage() {
                                             {physician.specialty === 'Other' && (
                                                 <div className={styles.intakeRow}>
                                                     <div className={styles.fieldGroup} data-field-key="physician_specialtyOther">
-                                                        <label className={styles.fieldLabel}>Specialty, If Other{REQUIRED_MARK}</label>
-                                                        <input className={`${styles.fieldInput} ${errors.physician_specialtyOther ? styles.errorBorder : ''}`} value={physician.specialtyOther} onChange={(e) => handleContactChange('physician', 'specialtyOther', e.target.value)} />
+                                                        <label htmlFor="intake-physician-specialty-other" className={styles.fieldLabel}>Specialty, If Other{REQUIRED_MARK}</label>
+                                                        <input id="intake-physician-specialty-other" className={`${styles.fieldInput} ${errors.physician_specialtyOther ? styles.errorBorder : ''}`} value={physician.specialtyOther} onChange={(e) => handleContactChange('physician', 'specialtyOther', e.target.value)} />
                                                         {errors.physician_specialtyOther && <span className={styles.errorText}>{errors.physician_specialtyOther}</span>}
                                                     </div>
                                                     <div className={styles.intakeSpacer} />
@@ -1408,14 +1420,14 @@ export default function PreRegisterPage() {
                                             )}
                                             <div className={styles.intakeRow}>
                                                 <div className={styles.fieldGroup}>
-                                                    <label className={styles.fieldLabel}>Office Address</label>
-                                                    <input className={styles.fieldInput} value={physician.officeAddress} onChange={(e) => handleContactChange('physician', 'officeAddress', e.target.value)} />
+                                                    <label htmlFor="intake-physician-office-address" className={styles.fieldLabel}>Office Address</label>
+                                                    <input id="intake-physician-office-address" className={styles.fieldInput} value={physician.officeAddress} onChange={(e) => handleContactChange('physician', 'officeAddress', e.target.value)} />
                                                 </div>
                                                 <div className={styles.fieldGroup} data-field-key="physician_officeNumber">
-                                                    <label className={styles.fieldLabel}>Office Number</label>
+                                                    <label htmlFor="intake-physician-office-number" className={styles.fieldLabel}>Office Number</label>
                                                     <div className={`${styles.phoneInputGroup} ${errors.physician_officeNumber ? styles.errorBorder : ''}`}>
                                                         <span className={styles.phonePrefix}>{LANDLINE_PREFIX}</span>
-                                                        <input className={styles.phoneField} value={physician.officeNumber} onChange={(e) => handlePhysicianLandlineChange(e.target.value)} maxLength={8} placeholder="1234567" />
+                                                        <input id="intake-physician-office-number" className={styles.phoneField} value={physician.officeNumber} onChange={(e) => handlePhysicianLandlineChange(e.target.value)} maxLength={8} placeholder="1234567" />
                                                     </div>
                                                     {errors.physician_officeNumber && <span className={styles.errorText}>{errors.physician_officeNumber}</span>}
                                                 </div>
@@ -1433,32 +1445,32 @@ export default function PreRegisterPage() {
                                             <div className={styles.intakeRow}>
                                                 {renderYesNoField('Are you under medical treatment now?', medicalHistory.underMedicalTreatment, (value) => handleMedicalChange('underMedicalTreatment', value), 'medicalHistory_underMedicalTreatment', 'medicalHistory_underMedicalTreatment')}
                                                 <div className={styles.fieldGroup} data-field-key="medicalHistory_medicalTreatmentDetails">
-                                                    <label className={styles.fieldLabel}>If So, What Is the Condition Treated?</label>
-                                                    <input className={`${styles.fieldInput} ${errors.medicalHistory_medicalTreatmentDetails ? styles.errorBorder : ''}`} value={medicalHistory.medicalTreatmentDetails} onChange={(e) => handleMedicalChange('medicalTreatmentDetails', e.target.value)} />
+                                                    <label htmlFor="medical-treatment-details" className={styles.fieldLabel}>If So, What Is the Condition Treated?</label>
+                                                    <input id="medical-treatment-details" className={`${styles.fieldInput} ${errors.medicalHistory_medicalTreatmentDetails ? styles.errorBorder : ''}`} value={medicalHistory.medicalTreatmentDetails} onChange={(e) => handleMedicalChange('medicalTreatmentDetails', e.target.value)} />
                                                     {errors.medicalHistory_medicalTreatmentDetails && <span className={styles.errorText}>{errors.medicalHistory_medicalTreatmentDetails}</span>}
                                                 </div>
                                             </div>
                                             <div className={styles.intakeRow}>
                                                 {renderYesNoField('Have you ever had serious illness or surgical operation?', medicalHistory.hadSeriousIllnessOrSurgery, (value) => handleMedicalChange('hadSeriousIllnessOrSurgery', value), 'medicalHistory_hadSeriousIllnessOrSurgery', 'medicalHistory_hadSeriousIllnessOrSurgery')}
                                                 <div className={styles.fieldGroup} data-field-key="medicalHistory_seriousIllnessOrSurgeryDetails">
-                                                    <label className={styles.fieldLabel}>If So, What Is the Illness or Operation?</label>
-                                                    <input className={`${styles.fieldInput} ${errors.medicalHistory_seriousIllnessOrSurgeryDetails ? styles.errorBorder : ''}`} value={medicalHistory.seriousIllnessOrSurgeryDetails} onChange={(e) => handleMedicalChange('seriousIllnessOrSurgeryDetails', e.target.value)} />
+                                                    <label htmlFor="medical-illness-surgery-details" className={styles.fieldLabel}>If So, What Is the Illness or Operation?</label>
+                                                    <input id="medical-illness-surgery-details" className={`${styles.fieldInput} ${errors.medicalHistory_seriousIllnessOrSurgeryDetails ? styles.errorBorder : ''}`} value={medicalHistory.seriousIllnessOrSurgeryDetails} onChange={(e) => handleMedicalChange('seriousIllnessOrSurgeryDetails', e.target.value)} />
                                                     {errors.medicalHistory_seriousIllnessOrSurgeryDetails && <span className={styles.errorText}>{errors.medicalHistory_seriousIllnessOrSurgeryDetails}</span>}
                                                 </div>
                                             </div>
                                             <div className={styles.intakeRow}>
                                                 {renderYesNoField('Have you ever been hospitalized?', medicalHistory.hadHospitalization, (value) => handleMedicalChange('hadHospitalization', value), 'medicalHistory_hadHospitalization', 'medicalHistory_hadHospitalization')}
                                                 <div className={styles.fieldGroup} data-field-key="medicalHistory_hospitalizationDetails">
-                                                    <label className={styles.fieldLabel}>If So, When and Why?</label>
-                                                    <input className={`${styles.fieldInput} ${errors.medicalHistory_hospitalizationDetails ? styles.errorBorder : ''}`} value={medicalHistory.hospitalizationDetails} onChange={(e) => handleMedicalChange('hospitalizationDetails', e.target.value)} />
+                                                    <label htmlFor="medical-hospitalization-details" className={styles.fieldLabel}>If So, When and Why?</label>
+                                                    <input id="medical-hospitalization-details" className={`${styles.fieldInput} ${errors.medicalHistory_hospitalizationDetails ? styles.errorBorder : ''}`} value={medicalHistory.hospitalizationDetails} onChange={(e) => handleMedicalChange('hospitalizationDetails', e.target.value)} />
                                                     {errors.medicalHistory_hospitalizationDetails && <span className={styles.errorText}>{errors.medicalHistory_hospitalizationDetails}</span>}
                                                 </div>
                                             </div>
                                             <div className={styles.intakeRow}>
                                                 {renderYesNoField('Are you taking any prescription/non-prescription medication?', medicalHistory.isTakingMedication, (value) => handleMedicalChange('isTakingMedication', value), 'medicalHistory_isTakingMedication', 'medicalHistory_isTakingMedication')}
                                                 <div className={styles.fieldGroup} data-field-key="medicalHistory_medications">
-                                                    <label className={styles.fieldLabel}>If So, Please Specify</label>
-                                                    <input className={`${styles.fieldInput} ${errors.medicalHistory_medications ? styles.errorBorder : ''}`} value={medicalHistory.medications} onChange={(e) => handleMedicalChange('medications', e.target.value)} placeholder="Comma-separated values" />
+                                                    <label htmlFor="medical-medications" className={styles.fieldLabel}>If So, Please Specify</label>
+                                                    <input id="medical-medications" className={`${styles.fieldInput} ${errors.medicalHistory_medications ? styles.errorBorder : ''}`} value={medicalHistory.medications} onChange={(e) => handleMedicalChange('medications', e.target.value)} placeholder="Comma-separated values" />
                                                     {errors.medicalHistory_medications && <span className={styles.errorText}>{errors.medicalHistory_medications}</span>}
                                                 </div>
                                             </div>
@@ -1472,7 +1484,7 @@ export default function PreRegisterPage() {
                                             </div>
                                             <div className={styles.intakeRowSingle}>
                                                 <div className={styles.fieldGroup} data-field-key="medicalHistory_allergies">
-                                                    <label className={styles.fieldLabel}>Allergies</label>
+                                                    <div className={styles.fieldLabel}>Allergies</div>
                                                     <div className={styles.checkboxGrid}>
                                                         {ALLERGY_OPTIONS.map((option) => (
                                                             <label key={option} className={styles.checkboxCard}>
@@ -1485,15 +1497,15 @@ export default function PreRegisterPage() {
                                             </div>
                                             <div className={styles.intakeRow}>
                                                 <div className={styles.fieldGroup}>
-                                                    <input className={`${styles.fieldInput} ${errors.medicalHistory_allergies ? styles.errorBorder : ''}`} value={medicalHistory.allergyOther} onChange={(e) => handleMedicalChange('allergyOther', e.target.value)} placeholder="Other allergy" />
+                                                    <input aria-label="Other allergy" className={`${styles.fieldInput} ${errors.medicalHistory_allergies ? styles.errorBorder : ''}`} value={medicalHistory.allergyOther} onChange={(e) => handleMedicalChange('allergyOther', e.target.value)} placeholder="Other allergy" />
                                                     {errors.medicalHistory_allergies && <span className={styles.errorText}>{errors.medicalHistory_allergies}</span>}
                                                 </div>
                                                 <div className={styles.intakeSpacer} />
                                             </div>
                                             <div className={styles.intakeRow}>
                                                 <div className={styles.fieldGroup}>
-                                                    <label className={styles.fieldLabel}>Bleeding Time</label>
-                                                    <input className={styles.fieldInput} value={medicalHistory.bleedingTime} onChange={(e) => handleMedicalChange('bleedingTime', e.target.value)} />
+                                                    <label htmlFor="medical-bleeding-time" className={styles.fieldLabel}>Bleeding Time</label>
+                                                    <input id="medical-bleeding-time" className={styles.fieldInput} value={medicalHistory.bleedingTime} onChange={(e) => handleMedicalChange('bleedingTime', e.target.value)} />
                                                 </div>
                                                 <div className={styles.intakeSpacer} />
                                             </div>
@@ -1511,20 +1523,20 @@ export default function PreRegisterPage() {
                                             )}
                                             <div className={styles.intakeRow}>
                                                 <div className={styles.fieldGroup}>
-                                                    <label className={styles.fieldLabel}>Blood Type</label>
-                                                    <select className={styles.fieldSelect} value={profile.bloodType} onChange={(e) => handleProfileChange('bloodType', e.target.value)}>
+                                                    <label htmlFor="medical-blood-type" className={styles.fieldLabel}>Blood Type</label>
+                                                    <select id="medical-blood-type" className={styles.fieldSelect} value={profile.bloodType} onChange={(e) => handleProfileChange('bloodType', e.target.value)}>
                                                         <option value="">Select blood type</option>
                                                         {BLOOD_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                                                     </select>
                                                 </div>
                                                 <div className={styles.fieldGroup}>
-                                                    <label className={styles.fieldLabel}>Blood Pressure</label>
-                                                    <input className={styles.fieldInput} value={medicalHistory.bloodPressure} onChange={(e) => handleMedicalChange('bloodPressure', e.target.value)} placeholder="e.g. 120/80" />
+                                                    <label htmlFor="medical-blood-pressure" className={styles.fieldLabel}>Blood Pressure</label>
+                                                    <input id="medical-blood-pressure" className={styles.fieldInput} value={medicalHistory.bloodPressure} onChange={(e) => handleMedicalChange('bloodPressure', e.target.value)} placeholder="e.g. 120/80" />
                                                 </div>
                                             </div>
                                             <div className={styles.intakeRowSingle}>
                                                 <div className={styles.fieldGroup}>
-                                                    <label className={styles.fieldLabel}>Medical Conditions</label>
+                                                    <div className={styles.fieldLabel}>Medical Conditions</div>
                                                     <div className={styles.checkboxGrid}>
                                                         {MEDICAL_CONDITION_OPTIONS.map((option) => (
                                                             <label key={option} className={styles.checkboxCard}>
@@ -1533,13 +1545,13 @@ export default function PreRegisterPage() {
                                                             </label>
                                                         ))}
                                                     </div>
-                                                    <input className={styles.fieldInput} style={{ marginTop: '12px' }} value={medicalHistory.conditionOther} onChange={(e) => handleMedicalChange('conditionOther', e.target.value)} placeholder="Other condition" />
+                                                    <input aria-label="Other medical condition" className={styles.fieldInput} style={{ marginTop: '12px' }} value={medicalHistory.conditionOther} onChange={(e) => handleMedicalChange('conditionOther', e.target.value)} placeholder="Other condition" />
                                                 </div>
                                             </div>
                                             <div className={styles.intakeRow}>
                                                 <div className={styles.fieldGroup}>
-                                                    <label className={styles.fieldLabel}>Medical Notes</label>
-                                                    <textarea className={styles.fieldTextarea} value={medicalHistory.notes} onChange={(e) => handleMedicalChange('notes', e.target.value)} />
+                                                    <label htmlFor="medical-notes" className={styles.fieldLabel}>Medical Notes</label>
+                                                    <textarea id="medical-notes" className={styles.fieldTextarea} value={medicalHistory.notes} onChange={(e) => handleMedicalChange('notes', e.target.value)} />
                                                 </div>
                                                 <div className={styles.intakeSpacer} />
                                             </div>
@@ -1548,36 +1560,37 @@ export default function PreRegisterPage() {
 
                                     <PatientRegistrationSectionCard
                                         title="Physician Information"
+                                        headingLevel={2}
                                         description="If applicable, add the patient's attending physician details."
                                     >
                                         <div className={styles.formGrid}>
                                             <div className={styles.fieldGroup}>
-                                                <label className={styles.fieldLabel}>Physician Name</label>
-                                                <input className={styles.fieldInput} value={physician.name} onChange={(e) => handleContactChange('physician', 'name', e.target.value)} />
+                                                <label htmlFor="physician-name" className={styles.fieldLabel}>Physician Name</label>
+                                                <input id="physician-name" className={styles.fieldInput} value={physician.name} onChange={(e) => handleContactChange('physician', 'name', e.target.value)} />
                                             </div>
                                             <div className={styles.fieldGroup}>
-                                                <label className={styles.fieldLabel}>Specialty, If Applicable</label>
-                                                <select className={styles.fieldSelect} value={physician.specialty} onChange={(e) => handleContactChange('physician', 'specialty', e.target.value)}>
+                                                <label htmlFor="physician-specialty" className={styles.fieldLabel}>Specialty, If Applicable</label>
+                                                <select id="physician-specialty" className={styles.fieldSelect} value={physician.specialty} onChange={(e) => handleContactChange('physician', 'specialty', e.target.value)}>
                                                     <option value="">Select specialty</option>
                                                     {PHYSICIAN_SPECIALTY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                                                 </select>
                                             </div>
                                             {physician.specialty === 'Other' && (
                                                 <div className={styles.fieldGroup} data-field-key="physician_specialtyOther">
-                                                    <label className={styles.fieldLabel}>Specialty, If Other{REQUIRED_MARK}</label>
-                                                    <input className={`${styles.fieldInput} ${errors.physician_specialtyOther ? styles.errorBorder : ''}`} value={physician.specialtyOther} onChange={(e) => handleContactChange('physician', 'specialtyOther', e.target.value)} />
+                                                    <label htmlFor="physician-specialty-other" className={styles.fieldLabel}>Specialty, If Other{REQUIRED_MARK}</label>
+                                                    <input id="physician-specialty-other" className={`${styles.fieldInput} ${errors.physician_specialtyOther ? styles.errorBorder : ''}`} value={physician.specialtyOther} onChange={(e) => handleContactChange('physician', 'specialtyOther', e.target.value)} />
                                                     {errors.physician_specialtyOther && <span className={styles.errorText}>{errors.physician_specialtyOther}</span>}
                                                 </div>
                                             )}
                                             <div className={`${styles.fieldGroup} ${styles.fullWidth}`}>
-                                                <label className={styles.fieldLabel}>Office Address</label>
-                                                <input className={styles.fieldInput} value={physician.officeAddress} onChange={(e) => handleContactChange('physician', 'officeAddress', e.target.value)} />
+                                                <label htmlFor="physician-office-address" className={styles.fieldLabel}>Office Address</label>
+                                                <input id="physician-office-address" className={styles.fieldInput} value={physician.officeAddress} onChange={(e) => handleContactChange('physician', 'officeAddress', e.target.value)} />
                                             </div>
                                             <div className={styles.fieldGroup} data-field-key="physician_officeNumber">
-                                                <label className={styles.fieldLabel}>Office Number</label>
+                                                <label htmlFor="physician-office-number" className={styles.fieldLabel}>Office Number</label>
                                                 <div className={`${styles.phoneInputGroup} ${errors.physician_officeNumber ? styles.errorBorder : ''}`}>
                                                     <span className={styles.phonePrefix}>{LANDLINE_PREFIX}</span>
-                                                    <input className={styles.phoneField} value={physician.officeNumber} onChange={(e) => handlePhysicianLandlineChange(e.target.value)} maxLength={8} placeholder="1234567" />
+                                                    <input id="physician-office-number" className={styles.phoneField} value={physician.officeNumber} onChange={(e) => handlePhysicianLandlineChange(e.target.value)} maxLength={8} placeholder="1234567" />
                                                 </div>
                                                 {errors.physician_officeNumber && <span className={styles.errorText}>{errors.physician_officeNumber}</span>}
                                             </div>
@@ -1599,6 +1612,7 @@ export default function PreRegisterPage() {
                                     <PatientRegistrationSectionCard
                                         eyebrow="Consent & Review"
                                         title="Consent & Review"
+                                        headingLevel={2}
                                         description="Review the consent details carefully before submitting your pre-registration."
                                     >
                                         <h3 className={styles.sectionTitle} style={{ fontSize: '1rem' }}>Data Privacy Act</h3>
@@ -1607,25 +1621,25 @@ export default function PreRegisterPage() {
                                         </p>
                                         <div className={styles.formGrid}>
                                             <div className={styles.fieldGroup} data-field-key="dataPrivacyConsent_signerName">
-                                                <label className={styles.fieldLabel}>Signer Name{REQUIRED_MARK}</label>
-                                                <input className={`${styles.fieldInput} ${errors.dataPrivacyConsent_signerName ? styles.errorBorder : ''}`} value={dataPrivacyConsent.signerName} onChange={(e) => handleConsentChange('privacy', 'signerName', e.target.value)} />
+                                                <label htmlFor="privacy-signer-name" className={styles.fieldLabel}>Signer Name{REQUIRED_MARK}</label>
+                                                <input id="privacy-signer-name" className={`${styles.fieldInput} ${errors.dataPrivacyConsent_signerName ? styles.errorBorder : ''}`} value={dataPrivacyConsent.signerName} onChange={(e) => handleConsentChange('privacy', 'signerName', e.target.value)} />
                                                 {errors.dataPrivacyConsent_signerName && <span className={styles.errorText}>{errors.dataPrivacyConsent_signerName}</span>}
                                             </div>
                                             <div className={styles.fieldGroup}>
-                                                <label className={styles.fieldLabel}>Signer Role{REQUIRED_MARK}</label>
-                                                <select className={styles.fieldSelect} value={dataPrivacyConsent.signerRole} onChange={(e) => handleConsentChange('privacy', 'signerRole', e.target.value)}>
+                                                <label htmlFor="privacy-signer-role" className={styles.fieldLabel}>Signer Role{REQUIRED_MARK}</label>
+                                                <select id="privacy-signer-role" className={styles.fieldSelect} value={dataPrivacyConsent.signerRole} onChange={(e) => handleConsentChange('privacy', 'signerRole', e.target.value)}>
                                                     <option value="Patient">Patient</option>
                                                     <option value="Parent">Parent</option>
                                                     <option value="Guardian">Guardian</option>
                                                 </select>
                                             </div>
                                             <div className={styles.fieldGroup} data-field-key="dataPrivacyConsent_signedAt">
-                                                <label className={styles.fieldLabel}>Date Signed{REQUIRED_MARK}</label>
-                                                <input type="date" className={`${styles.fieldInput} ${errors.dataPrivacyConsent_signedAt ? styles.errorBorder : ''}`} value={dataPrivacyConsent.signedAt} onChange={(e) => handleConsentChange('privacy', 'signedAt', e.target.value)} max={getTodayDate()} />
+                                                <label htmlFor="privacy-signed-at" className={styles.fieldLabel}>Date Signed{REQUIRED_MARK}</label>
+                                                <input id="privacy-signed-at" type="date" className={`${styles.fieldInput} ${errors.dataPrivacyConsent_signedAt ? styles.errorBorder : ''}`} value={dataPrivacyConsent.signedAt} onChange={(e) => handleConsentChange('privacy', 'signedAt', e.target.value)} max={getTodayDate()} />
                                                 {errors.dataPrivacyConsent_signedAt && <span className={styles.errorText}>{errors.dataPrivacyConsent_signedAt}</span>}
                                             </div>
                                             <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="dataPrivacyConsent_acknowledged">
-                                                <label className={styles.fieldLabel}>Data Privacy Acknowledgement{REQUIRED_MARK}</label>
+                                                <div className={styles.fieldLabel}>Data Privacy Acknowledgement{REQUIRED_MARK}</div>
                                                 <button
                                                     type="button"
                                                     className={styles.secondaryBtn}
@@ -1655,25 +1669,25 @@ export default function PreRegisterPage() {
                                         </p>
                                         <div className={styles.formGrid}>
                                             <div className={styles.fieldGroup} data-field-key="consentAcknowledgement_signerName">
-                                                <label className={styles.fieldLabel}>Signer Name{REQUIRED_MARK}</label>
-                                                <input className={`${styles.fieldInput} ${errors.consentAcknowledgement_signerName ? styles.errorBorder : ''}`} value={consentAcknowledgement.signerName} onChange={(e) => handleConsentChange('consent', 'signerName', e.target.value)} />
+                                                <label htmlFor="consent-signer-name" className={styles.fieldLabel}>Signer Name{REQUIRED_MARK}</label>
+                                                <input id="consent-signer-name" className={`${styles.fieldInput} ${errors.consentAcknowledgement_signerName ? styles.errorBorder : ''}`} value={consentAcknowledgement.signerName} onChange={(e) => handleConsentChange('consent', 'signerName', e.target.value)} />
                                                 {errors.consentAcknowledgement_signerName && <span className={styles.errorText}>{errors.consentAcknowledgement_signerName}</span>}
                                             </div>
                                             <div className={styles.fieldGroup}>
-                                                <label className={styles.fieldLabel}>Signer Role{REQUIRED_MARK}</label>
-                                                <select className={styles.fieldSelect} value={consentAcknowledgement.signerRole} onChange={(e) => handleConsentChange('consent', 'signerRole', e.target.value)}>
+                                                <label htmlFor="consent-signer-role" className={styles.fieldLabel}>Signer Role{REQUIRED_MARK}</label>
+                                                <select id="consent-signer-role" className={styles.fieldSelect} value={consentAcknowledgement.signerRole} onChange={(e) => handleConsentChange('consent', 'signerRole', e.target.value)}>
                                                     <option value="Patient">Patient</option>
                                                     <option value="Parent">Parent</option>
                                                     <option value="Guardian">Guardian</option>
                                                 </select>
                                             </div>
                                             <div className={styles.fieldGroup} data-field-key="consentAcknowledgement_signedAt">
-                                                <label className={styles.fieldLabel}>Date Signed{REQUIRED_MARK}</label>
-                                                <input type="date" className={`${styles.fieldInput} ${errors.consentAcknowledgement_signedAt ? styles.errorBorder : ''}`} value={consentAcknowledgement.signedAt} onChange={(e) => handleConsentChange('consent', 'signedAt', e.target.value)} max={getTodayDate()} />
+                                                <label htmlFor="consent-signed-at" className={styles.fieldLabel}>Date Signed{REQUIRED_MARK}</label>
+                                                <input id="consent-signed-at" type="date" className={`${styles.fieldInput} ${errors.consentAcknowledgement_signedAt ? styles.errorBorder : ''}`} value={consentAcknowledgement.signedAt} onChange={(e) => handleConsentChange('consent', 'signedAt', e.target.value)} max={getTodayDate()} />
                                                 {errors.consentAcknowledgement_signedAt && <span className={styles.errorText}>{errors.consentAcknowledgement_signedAt}</span>}
                                             </div>
                                             <div className={`${styles.fieldGroup} ${styles.fullWidth}`} data-field-key="consentAcknowledgement_acknowledged">
-                                                <label className={styles.fieldLabel}>Consent Review Acknowledgement{REQUIRED_MARK}</label>
+                                                <div className={styles.fieldLabel}>Consent Review Acknowledgement{REQUIRED_MARK}</div>
                                                 <button type="button" className={styles.secondaryBtn} onClick={() => setIsConsentModalOpen(true)} style={{ justifySelf: 'start' }}>
                                                     {consentAcknowledgement.acknowledged ? 'Review Consent Again' : 'View Full Consent Form'}
                                                 </button>
