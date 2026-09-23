@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import dentimeLogo from '../../assets/images/logo-dentime.svg';
 import styles from './PreRegistrationShell.module.css';
 
 export default function PreRegistrationShell({ children }) {
@@ -7,11 +8,7 @@ export default function PreRegistrationShell({ children }) {
         <div className={styles.page}>
             <header className={styles.header}>
                 <Link to="/" className={styles.brand} aria-label="Go to the Dentime home page">
-                    <span className={styles.brandMark} aria-hidden="true">N</span>
-                    <span>
-                        <strong>NgitiFy</strong>
-                        <small>Dentime Dental Clinic</small>
-                    </span>
+                    <img src={dentimeLogo} alt="Dentime Dental Clinic" className={styles.logo} />
                 </Link>
                 <span className={styles.secureLabel}>Secure Pre-Registration</span>
             </header>

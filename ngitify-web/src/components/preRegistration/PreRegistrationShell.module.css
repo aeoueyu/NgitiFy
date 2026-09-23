@@ -18,37 +18,17 @@
 .brand {
     display: inline-flex;
     align-items: center;
-    gap: 11px;
     color: #01538b;
     text-decoration: none;
 }
 
-.brandMark {
-    width: 42px;
-    height: 42px;
-    display: grid;
-    place-items: center;
-    border-radius: 12px;
-    background: #01538b;
-    color: #ffffff;
-    font-size: 23px;
-    font-weight: 800;
-}
-
-.brand strong,
-.brand small {
+.logo {
     display: block;
-}
-
-.brand strong {
-    font-size: 18px;
-    line-height: 1.1;
-}
-
-.brand small {
-    margin-top: 3px;
-    color: #5d7285;
-    font-size: 11px;
+    width: auto;
+    height: 48px;
+    max-width: min(220px, 48vw);
+    object-fit: contain;
+    object-position: left center;
 }
 
 .secureLabel {
@@ -75,6 +55,11 @@
     .header {
         min-height: 64px;
         padding: 10px 16px;
+    }
+
+    .logo {
+        height: 40px;
+        max-width: 46vw;
     }
 
     .secureLabel {
