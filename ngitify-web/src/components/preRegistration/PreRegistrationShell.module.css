@@ -1,0 +1,90 @@
+.page {
+    min-height: 100vh;
+    background: #f5f9fc;
+    color: #17324d;
+}
+
+.header {
+    min-height: 72px;
+    padding: 12px clamp(18px, 5vw, 72px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    background: #ffffff;
+    border-bottom: 1px solid #dce8f1;
+}
+
+.brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 11px;
+    color: #01538b;
+    text-decoration: none;
+}
+
+.brandMark {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: #01538b;
+    color: #ffffff;
+    font-size: 23px;
+    font-weight: 800;
+}
+
+.brand strong,
+.brand small {
+    display: block;
+}
+
+.brand strong {
+    font-size: 18px;
+    line-height: 1.1;
+}
+
+.brand small {
+    margin-top: 3px;
+    color: #5d7285;
+    font-size: 11px;
+}
+
+.secureLabel {
+    color: #52697c;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.main {
+    width: min(1180px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 24px 0 48px;
+}
+
+.footer {
+    padding: 20px 16px;
+    border-top: 1px solid #dce8f1;
+    color: #667b8d;
+    text-align: center;
+    font-size: 12px;
+}
+
+@media (max-width: 560px) {
+    .header {
+        min-height: 64px;
+        padding: 10px 16px;
+    }
+
+    .secureLabel {
+        max-width: 90px;
+        text-align: right;
+        font-size: 11px;
+    }
+
+    .main {
+        width: min(100% - 20px, 1180px);
+        padding-top: 14px;
+    }
+}

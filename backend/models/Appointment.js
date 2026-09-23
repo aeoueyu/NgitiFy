@@ -179,5 +179,11 @@ appointmentSchema.index({ isArchived: 1, date: -1 });
 appointmentSchema.index({ branch: 1, isArchived: 1, date: -1 });
 appointmentSchema.index({ dentist: 1, isArchived: 1, date: -1 });
 appointmentSchema.index({ patient: 1, isArchived: 1, date: -1 });
+// Public pre-registration links perform an exact token lookup. The partial
+// filter keeps appointments without a token out of this focused index.
+appointmentSchema.index(
+    { preRegistrationToken: 1, isArchived: 1 },
+    { partialFilterExpression: { preRegistrationToken: { $type: 'string' } } }
+);
 
 module.exports = mongoose.models.Appointment || mongoose.model('Appointment', appointmentSchema);

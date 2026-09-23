@@ -16252,6 +16252,7 @@ const startServer = async () => {
 
         await ensureInventoryBatchIndexes();
         await ensureInventoryStockInNumbers();
+        await Appointment.createIndexes();
         await OralHealthLog.createIndexes();
 
         await initializeBackupScheduler();

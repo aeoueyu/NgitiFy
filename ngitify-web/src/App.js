@@ -12,9 +12,9 @@ import WebsiteServices from './pages/website/WebsiteServices';
 import WebsiteContact from './pages/website/WebsiteContact';
 import WebsiteAppointment from './pages/website/WebsiteAppointment';
 import WebsitePreview from './pages/website/WebsitePreview';
-import PreRegisterPage from './pages/PreRegisterPage';
 import LoginPage from './pages/auth/LoginPage';
 
+const PreRegisterPage = lazy(() => import('./pages/PreRegisterPage'));
 const ForgotPassPage = lazy(() => import('./pages/auth/ForgotPassPage'));
 const VerificationCodePage = lazy(() => import('./pages/auth/VerificationCodePage'));
 const NewPasswordPage = lazy(() => import('./pages/auth/NewPasswordPage'));

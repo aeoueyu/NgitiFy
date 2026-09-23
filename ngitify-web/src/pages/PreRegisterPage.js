@@ -1,17 +1,20 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import WebsiteShell from '../components/website/WebsiteShell';
+import PreRegistrationShell from '../components/preRegistration/PreRegistrationShell';
 import ConsentReviewModal from '../components/admin/ConsentReviewModal';
 import {
     PatientRegistrationSectionCard,
     PatientRegistrationStepper,
 } from '../components/patient/PatientRegistrationFlow';
 import styles from '../styles/website/WebsitePages.module.css';
-import authStyles from '../styles/auth/NewPasswordPage.module.css';
-import logo from '../assets/images/logo-dentime.svg';
 import { privacyPolicySections, privacyPolicyUpdatedAt, privacyPolicyVersion } from '../data/consentDocument';
 import { publicFetch } from '../utils/api';
-import { regions, provinces, cities, barangays } from '../utils/addressData';
+import {
+    cities,
+    loadBarangaysForCity,
+    provinces,
+    regions,
+} from '../utils/preRegistrationAddressData';
 import {
     ALLERGY_OPTIONS,
     ALLERGY_SELECTION_REQUIRED_MESSAGE,
@@ -317,6 +320,9 @@ export default function PreRegisterPage() {
     const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
     const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
     const [activeStepKey, setActiveStepKey] = useState('identity');
+    const [availableBarangays, setAvailableBarangays] = useState([]);
+    const [areBarangaysLoading, setAreBarangaysLoading] = useState(false);
+    const [barangayLoadError, setBarangayLoadError] = useState('');
 
     const patientAge = useMemo(() => getAge(appointmentInfo?.guestBirthdate), [appointmentInfo?.guestBirthdate]);
     const isMinor = patientAge !== null && patientAge < 18;
@@ -637,6 +643,40 @@ export default function PreRegisterPage() {
         setActiveStepKey('identity');
     }, [isPhoneCallPreRegistration, state]);
 
+    useEffect(() => {
+        let isCurrent = true;
+        const cityCode = homeAddress.city;
+
+        if (!cityCode) {
+            setAvailableBarangays([]);
+            setAreBarangaysLoading(false);
+            setBarangayLoadError('');
+            return () => {
+                isCurrent = false;
+            };
+        }
+
+        setAvailableBarangays([]);
+        setAreBarangaysLoading(true);
+        setBarangayLoadError('');
+
+        loadBarangaysForCity(cityCode)
+            .then((options) => {
+                if (!isCurrent) return;
+                setAvailableBarangays(options);
+                setAreBarangaysLoading(false);
+            })
+            .catch(() => {
+                if (!isCurrent) return;
+                setBarangayLoadError('Unable to load barangays. Please try selecting the city again.');
+                setAreBarangaysLoading(false);
+            });
+
+        return () => {
+            isCurrent = false;
+        };
+    }, [homeAddress.city]);
+
     const handleAddressChange = (field, value) => {
         const nextHomeAddress = { ...homeAddress, [field]: value };
         if (field === 'region') {
@@ -910,24 +950,24 @@ export default function PreRegisterPage() {
 
     const availableProvinces = homeAddress.region ? provinces[homeAddress.region] || [] : [];
     const availableCities = homeAddress.province ? cities[homeAddress.province] || [] : [];
-    const availableBarangays = homeAddress.city ? barangays[homeAddress.city] || [] : [];
-
     if (state === 'invalid') {
         return (
-            <div className={authStyles['main-container']}>
-                <div className={authStyles.container}>
-                    <img src={logo} alt="Dentime" className={authStyles.logo} />
-                    <div className={authStyles['page-title']}>
-                        <h1 className={authStyles['newpass-title']}>Registration Unavailable</h1>
+            <PreRegistrationShell>
+                <section className={styles.section}>
+                    <div className={styles.splitSection} style={{ gridTemplateColumns: '1fr' }}>
+                        <article className={styles.infoCard}>
+                            <p className={styles.eyebrow}>Pre-Registration</p>
+                            <h1 className={styles.sectionTitle}>Registration Unavailable</h1>
+                            <p className={styles.bodyText}>{message || 'Invalid or expired registration link.'}</p>
+                            <div className={styles.buttonRow}>
+                                <button type="button" className={styles.primaryBtn} onClick={() => navigate('/login')}>
+                                    Back to Login
+                                </button>
+                            </div>
+                        </article>
                     </div>
-                    <div className={authStyles['page-header']}>
-                        <p>{message || 'Invalid or expired registration link.'}</p>
-                    </div>
-                    <div className={authStyles['back-container']}>
-                        <span onClick={() => navigate('/login')}>Back to Login</span>
-                    </div>
-                </div>
-            </div>
+                </section>
+            </PreRegistrationShell>
         );
     }
 
@@ -961,7 +1001,7 @@ export default function PreRegisterPage() {
     );
 
     return (
-        <WebsiteShell>
+        <PreRegistrationShell>
             <section className={styles.section}>
                 <div className={styles.splitSection} style={{ gridTemplateColumns: '1fr' }}>
                     <article className={styles.infoCard}>
@@ -1219,10 +1259,11 @@ export default function PreRegisterPage() {
                                     </div>
                                     <div className={styles.fieldGroup} data-field-key="home_barangay">
                                         <label htmlFor="home-barangay" className={styles.fieldLabel}>Barangay{REQUIRED_MARK}</label>
-                                        <select id="home-barangay" className={`${styles.fieldSelect} ${errors.home_barangay ? styles.errorBorder : ''}`} value={homeAddress.barangay} onChange={(e) => handleAddressChange('barangay', e.target.value)} disabled={!homeAddress.city}>
-                                            <option value="">Select barangay</option>
+                                        <select id="home-barangay" className={`${styles.fieldSelect} ${errors.home_barangay ? styles.errorBorder : ''}`} value={homeAddress.barangay} onChange={(e) => handleAddressChange('barangay', e.target.value)} disabled={!homeAddress.city || areBarangaysLoading || Boolean(barangayLoadError)}>
+                                            <option value="">{areBarangaysLoading ? 'Loading barangays...' : 'Select barangay'}</option>
                                             {availableBarangays.map((barangay) => <option key={barangay} value={barangay}>{barangay}</option>)}
                                         </select>
+                                        {barangayLoadError && <span className={styles.errorText}>{barangayLoadError}</span>}
                                         {errors.home_barangay && <span className={styles.errorText}>{errors.home_barangay}</span>}
                                     </div>
                                     <div className={styles.fieldGroup} data-field-key="home_street">
@@ -1751,6 +1792,6 @@ export default function PreRegisterPage() {
                 acknowledgementLabel="I acknowledge that the patient or authorized representative has reviewed the full data privacy notice."
                 confirmLabel="Save Privacy Acknowledgement"
             />
-        </WebsiteShell>
+        </PreRegistrationShell>
     );
 }
