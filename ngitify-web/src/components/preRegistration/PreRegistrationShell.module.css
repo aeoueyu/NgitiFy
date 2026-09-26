@@ -1,7 +1,13 @@
 .page {
+    --website-primary: #1f5286;
+    --website-primary-hover: #183f68;
+    --website-secondary: #61c7f0;
+    --website-text: #17324d;
+    --website-text-soft: #52697c;
     min-height: 100vh;
     background: #f5f9fc;
     color: #17324d;
+    font-family: 'Lexend Deca', sans-serif;
 }
 
 .header {

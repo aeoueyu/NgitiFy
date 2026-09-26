@@ -1418,13 +1418,16 @@ const formatConfiguredEmailCopy = (value = '', fallback = '') => {
 const getSystemEmailTemplates = async () => (await getNormalizedSystemConfig()).emailTemplates;
 
 const sendActivationEmail = async (email, role, tempPasswordOrActivationLink, activationLink = '', options = {}) => {
+    const resolvedActivationLink = activationLink || tempPasswordOrActivationLink || '';
+    if (process.env.NODE_ENV !== 'production' && resolvedActivationLink) {
+        console.log(`[Account activation] ${email}: ${resolvedActivationLink}`);
+    }
     const clinic = options?.clinic || await getClinicContactDetails();
     const emailTemplates = await getSystemEmailTemplates();
     const activationCopy = formatConfiguredEmailCopy(
         emailTemplates?.activation,
         DEFAULT_SYSTEM_EMAIL_TEMPLATES.activation
     );
-    const resolvedActivationLink = activationLink || tempPasswordOrActivationLink || '';
     const procedureSummary = options?.procedure
         ? `
                 <div style="background:#f7fbfe;border:1px solid #d9edf7;border-radius:18px;padding:18px;margin:18px 0;">
@@ -1535,6 +1538,9 @@ const issueActivationSetupForAccount = async (account) => {
 };
 
 const sendAccessReissueEmail = async (email, role, tempPassword, activationLink = '', options = {}) => {
+    if (process.env.NODE_ENV !== 'production' && activationLink) {
+        console.log(`[Account activation] ${email}: ${activationLink}`);
+    }
     const clinic = options?.clinic || await getClinicContactDetails();
     const needsActivation = Boolean(activationLink);
     const procedureSummary = options?.procedure

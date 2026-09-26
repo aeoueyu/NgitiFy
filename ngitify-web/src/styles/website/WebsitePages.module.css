@@ -156,17 +156,40 @@
 }
 
 .primaryBtn {
-    border: none;
-    background: var(--website-primary);
+    border: 2px solid var(--website-primary, #1f5286);
+    background: var(--website-primary, #1f5286);
     color: #fff;
+    -webkit-text-fill-color: #fff;
     box-shadow: 0 12px 24px rgba(31, 82, 134, 0.18);
 }
 
 .secondaryBtn,
 .socialBtn {
-    border: 1.5px solid rgba(31, 82, 134, 0.15);
+    border: 2px solid var(--website-primary, #1f5286);
     background: #fff;
-    color: var(--website-primary);
+    color: var(--website-primary-hover, #183f68);
+    -webkit-text-fill-color: var(--website-primary-hover, #183f68);
+}
+
+.primaryBtn:hover {
+    border-color: var(--website-primary-hover, #183f68);
+    background: var(--website-primary-hover, #183f68);
+}
+
+.primaryBtn:focus-visible,
+.secondaryBtn:focus-visible,
+.socialBtn:focus-visible {
+    outline: 3px solid var(--website-secondary, #61c7f0);
+    outline-offset: 3px;
+}
+
+.primaryBtn:disabled {
+    border-color: #64748b;
+    background: #64748b;
+    color: #fff;
+    -webkit-text-fill-color: #fff;
+    cursor: not-allowed;
+    opacity: 1;
 }
 
 .socialBtn {

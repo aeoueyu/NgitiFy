@@ -320,6 +320,7 @@ export default function PreRegisterPage() {
     const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
     const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
     const [activeStepKey, setActiveStepKey] = useState('identity');
+    const [loadAttempt, setLoadAttempt] = useState(0);
     const [availableBarangays, setAvailableBarangays] = useState([]);
     const [areBarangaysLoading, setAreBarangaysLoading] = useState(false);
     const [barangayLoadError, setBarangayLoadError] = useState('');
@@ -551,6 +552,8 @@ export default function PreRegisterPage() {
     };
 
     useEffect(() => {
+        const controller = new AbortController();
+
         const fetchData = async () => {
             if (!token) {
                 setState('invalid');
@@ -558,8 +561,13 @@ export default function PreRegisterPage() {
                 return;
             }
 
+            setState('loading');
+            setMessage('');
+
             try {
-                const response = await publicFetch(`/pre-register/${token}`);
+                const response = await publicFetch(`/pre-register/${token}`, {
+                    signal: controller.signal,
+                });
                 const data = await response.json().catch(() => ({}));
 
                 if (response.status === 409) {
@@ -631,13 +639,15 @@ export default function PreRegisterPage() {
                 setDataPrivacyConsent(createConsentState(nextSignerRole, data.guestDataPrivacyConsent, 'Data Privacy Act of 2012'));
                 setState('ready');
             } catch (error) {
-                setState('invalid');
-                setMessage(error.message || 'This link has expired or is invalid. Please contact the clinic for assistance.');
+                if (error?.name === 'AbortError') return;
+                setState('network-error');
+                setMessage('We could not connect to the registration service. Please check your connection and try again.');
             }
         };
 
         fetchData();
-    }, [token]);
+        return () => controller.abort();
+    }, [loadAttempt, token]);
 
     useEffect(() => {
         setActiveStepKey('identity');
@@ -945,22 +955,31 @@ export default function PreRegisterPage() {
         if (state === 'success') return 'Registration completed';
         if (state === 'used') return 'Registration already completed';
         if (state === 'invalid') return 'Registration link unavailable';
+        if (state === 'network-error') return 'Unable to connect';
         return 'Complete your registration';
     }, [state]);
 
     const availableProvinces = homeAddress.region ? provinces[homeAddress.region] || [] : [];
     const availableCities = homeAddress.province ? cities[homeAddress.province] || [] : [];
-    if (state === 'invalid') {
+    if (state === 'invalid' || state === 'network-error') {
+        const isNetworkError = state === 'network-error';
         return (
             <PreRegistrationShell>
                 <section className={styles.section}>
                     <div className={styles.splitSection} style={{ gridTemplateColumns: '1fr' }}>
                         <article className={styles.infoCard}>
                             <p className={styles.eyebrow}>Pre-Registration</p>
-                            <h1 className={styles.sectionTitle}>Registration Unavailable</h1>
-                            <p className={styles.bodyText}>{message || 'Invalid or expired registration link.'}</p>
+                            <h1 className={styles.sectionTitle}>{isNetworkError ? 'Unable to Connect' : 'Registration Unavailable'}</h1>
+                            <p className={styles.bodyText} role="alert">
+                                {message || 'Invalid or expired registration link.'}
+                            </p>
                             <div className={styles.buttonRow}>
-                                <button type="button" className={styles.primaryBtn} onClick={() => navigate('/login')}>
+                                {isNetworkError && (
+                                    <button type="button" className={styles.primaryBtn} onClick={() => setLoadAttempt((attempt) => attempt + 1)}>
+                                        Try Again
+                                    </button>
+                                )}
+                                <button type="button" className={isNetworkError ? styles.secondaryBtn : styles.primaryBtn} onClick={() => navigate('/login')}>
                                     Back to Login
                                 </button>
                             </div>
